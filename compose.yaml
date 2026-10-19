@@ -1,0 +1,12 @@
+services:
+  teamspace:
+    build: .
+    ports:
+      - "127.0.0.1:3000:3000"
+    restart: unless-stopped
+    volumes:
+      - teamspace_data:/app/data
+
+volumes:
+  teamspace_data:
+    name: teamspace_data
