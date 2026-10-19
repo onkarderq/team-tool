@@ -6,7 +6,7 @@ ENV NODE_ENV=production \
 WORKDIR /app
 
 # No third-party runtime dependencies are needed.
-COPY --chown=node:node package.json server.js index.html app.js styles.css ./
+COPY --chown=node:node package.json server.js index.html app.js ids.js styles.css ./
 
 RUN mkdir -p /app/data && chown node:node /app/data
 VOLUME ["/app/data"]

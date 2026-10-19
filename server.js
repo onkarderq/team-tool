@@ -2,7 +2,7 @@ const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
-const files = {'/':'index.html','/app.js':'app.js','/styles.css':'styles.css'};
+const files = {'/':'index.html','/app.js':'app.js','/ids.js':'ids.js','/styles.css':'styles.css'};
 const directory = process.env.DATA_DIR || path.join(__dirname, 'data');
 fs.mkdirSync(directory, {recursive:true});
 const dataFile = path.join(directory, 'teamspace.json');
