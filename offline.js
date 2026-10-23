@@ -30,7 +30,7 @@
    if(adopted&&(!value.pending||(TeamspaceReconcile.equal(value.base,adopted.base)&&TeamspaceReconcile.equal(value.local,adopted.local)))){await operation('deleteExact',{id:adopted.id,expected:adopted});adopted=null;}
   }
  };
- function canAdopt(){return loaded&&!document.querySelector('#editor').open&&!document.querySelector('#leave-editor').open&&!document.querySelector('#time-editor').open&&!document.querySelector('[data-inline][data-dirty="true"]')&&!(window.DerqNotepad&&DerqNotepad.isDirty());}
+ function canAdopt(){return loaded&&!document.querySelector('#editor').open&&!document.querySelector('#leave-editor').open&&!document.querySelector('[data-inline][data-dirty="true"]')&&!(window.DerqNotepad&&DerqNotepad.isDirty());}
  function transportError(message,network=true,status){return Object.assign(Error(message),{network,status});}
  async function fetchRemote(){
   let response;try{response=await fetch('/api/state',{cache:'no-store',signal:AbortSignal.timeout(8000)});}catch{throw transportError('The server is unreachable. Changes remain on this device and will be retried.');}

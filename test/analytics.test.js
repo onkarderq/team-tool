@@ -14,9 +14,9 @@ test('rank colors include ties and treat everyone tied as neutral',()=>{
  const state=initial();assert.ok(A.ranks(state,day).every(row=>row.tone==='neutral'));
  state.tasks.push({id:'c',title:'Done',person:'p',status:'Done',completedDate:day});const rows=A.ranks(state,day);assert.equal(rows.find(r=>r.person==='p').tone,'high');assert.ok(rows.filter(r=>r.person!=='p').every(r=>r.tone==='low'));
 });
-test('time and availability metrics use explicit observations and exclude leave from available days',()=>{
- const state=initial();state.timeEntries=[{id:'e',person:'p',date:day,minutes:'90'},{id:'old',person:'p',date:'2020-01-01',minutes:'600'}];state.capacityHistory=[{id:'h',person:'p',date:day,capacity:'Available'},{id:'h2',person:'p',date:'2026-10-23',capacity:'Available'}];state.leaves=[{id:'l',person:'p',date:'2026-10-23'}];
- const result=A.memberStats(state,'p',day);assert.equal(result.minutes,90);assert.equal(result.available,1);assert.equal(result.observed,1);assert.equal(result.leave,1);
+test('availability metrics use explicit observations and exclude leave from available days',()=>{
+ const state=initial();state.capacityHistory=[{id:'h',person:'p',date:day,capacity:'Available'},{id:'h2',person:'p',date:'2026-10-23',capacity:'Available'}];state.leaves=[{id:'l',person:'p',date:'2026-10-23'}];
+ const result=A.memberStats(state,'p',day);assert.equal(result.available,1);assert.equal(result.observed,1);assert.equal(result.leave,1);
  let id=0;assert.equal(A.observeCapacity(state,day,()=>String(++id)),true);assert.equal(A.observeCapacity(state,day,()=>String(++id)),false);state.people[0].capacity='Balanced';A.observeCapacity(state,day,()=>String(++id));assert.equal(state.capacityHistory.find(h=>h.person==='p'&&h.date===day).capacity,'Balanced');
 });
 test('dependency validation rejects cycles and dangling edges and follows downstream chains',()=>{
@@ -30,7 +30,7 @@ test('assistant completion updates feed analytics and task deletion removes depe
  const state=initial();const plan={message:'',actions:[{kind:'update_task',id:'a',changes:[{field:'status',value:'Done'}],dates:[],page:''}]};const result=applyPlan(state,plan,day);assert.equal(result.state.tasks[0].completedDate,day);assert.equal(A.memberStats(result.state,'p',day).completed,1);
  plan.actions=[{kind:'delete_task',id:'a',changes:[],dates:[],page:''}];const removed=applyPlan(state,plan,day);assert.deepEqual(A.dependencies(removed.state.tasks[0]),[]);assert.equal(valid(removed.state),true);
 });
-test('extended records validate time-entry limits, observation uniqueness, and completion dates',()=>{
+test('legacy time-entry compatibility, observation uniqueness, and completion dates remain validated',()=>{
  const state=initial();assert.equal(valid({...state,timeEntries:[{id:'e',person:'p',date:day,minutes:'1440'}]}),true);
  for(const minutes of ['0','-1','1441','1.5','x'])assert.equal(valid({...state,timeEntries:[{id:'e',person:'p',date:day,minutes}]}),false);
  assert.equal(valid({...state,timeEntries:[{id:'e',person:'p',date:day,minutes:'800'},{id:'e2',person:'p',date:day,minutes:'800'}]}),false);
@@ -39,4 +39,26 @@ test('extended records validate time-entry limits, observation uniqueness, and c
 });
 test('a proposed leave selection replaces saved leave when evaluating backup candidates',()=>{
  const state=initial();state.leaves=[{id:'l',person:'p',date:day}];const impact=A.leaveImpact(state,day,['q']);assert.equal(impact[0].task.id,'b');assert.ok(impact[0].backups.some(b=>b.person.id==='p'));
+});
+
+test('leave totals count unique dates per member over 30 days independently of chart length',()=>{
+ const state=initial();state.leaves=[
+  {person:'p',date:day},{person:'p',date:A.shift(day,-29)},
+  {person:'p',date:A.shift(day,-20)},{person:'p',date:A.shift(day,-20)},
+  {person:'p',date:A.shift(day,-30)},{person:'p',date:A.shift(day,1)},
+  {person:'q',date:day},{person:'p',date:'invalid'}
+ ];
+ for(const count of [7,15,60]){
+  assert.equal(A.memberStats(state,'p',day,count).leave,3);
+  assert.equal(A.memberStats(state,'q',day,count).leave,1);
+  assert.equal(A.memberStats(state,'r',day,count).leave,0);
+ }
+});
+test('rolling leave totals cross year boundaries and include leap days',()=>{
+ for(const [end,first,excluded] of [['2027-01-10','2026-12-12','2026-12-11'],['2028-03-15','2028-02-15','2028-02-14']]){
+  const state=initial();state.leaves=[{person:'p',date:first},{person:'p',date:end},{person:'p',date:excluded}];
+  assert.equal(A.leaveDays(state,'p',end),2);
+ }
+ const state=initial();state.leaves=[{person:'p',date:'2028-02-29'},{person:'p',date:'2027-02-29'}];
+ assert.equal(A.leaveDays(state,'p','2028-03-15'),1);
 });

@@ -32,13 +32,17 @@
   return changed;
  }
  function completed(state,person,from,to){return state.tasks.filter(t=>t.status==='Done'&&(t.completedBy||t.person)===person&&isDay(t.completedDate)&&t.completedDate>=from&&t.completedDate<=to);}
+ // Leave is a rolling 30-calendar-day total, independent of the completion chart window.
+ function leaveDays(state,person,end){
+  const from=shift(end,-29);
+  return new Set((state.leaves||[]).filter(l=>l.person===person&&isDay(l.date)&&l.date>=from&&l.date<=end).map(l=>l.date)).size;
+ }
  function memberStats(state,person,end,count=15){
   const dates=days(end,count),from=dates[0],tasks=completed(state,person,from,end),history=(state.capacityHistory||[]).filter(h=>h.person===person&&h.date<=end).sort((a,b)=>a.date.localeCompare(b.date));
   const leave=new Set((state.leaves||[]).filter(l=>l.person===person).map(l=>l.date));let observed=0,available=0;
   // Only dates with an actual observation count; unobserved past days remain unknown.
   for(const date of dates){const observation=history.find(h=>h.date===date);if(observation&&!leave.has(date)){observed++;if(observation.capacity==='Available')available++;}}
-  const entries=(state.timeEntries||[]).filter(e=>e.person===person&&e.date>=from&&e.date<=end);
-  return {person,from,to:end,completed:tasks.length,tasks,series:dates.map(date=>({date,count:tasks.filter(t=>t.completedDate===date).length})),minutes:entries.reduce((sum,e)=>sum+Number(e.minutes),0),timeEntries:entries.length,available,observed,leave:dates.filter(date=>leave.has(date)).length,unknownCompletions:state.tasks.filter(t=>t.status==='Done'&&(t.completedBy||t.person)===person&&!isDay(t.completedDate)).length};
+  return {person,from,to:end,completed:tasks.length,tasks,series:dates.map(date=>({date,count:tasks.filter(t=>t.completedDate===date).length})),available,observed,leave:leaveDays(state,person,end),unknownCompletions:state.tasks.filter(t=>t.status==='Done'&&(t.completedBy||t.person)===person&&!isDay(t.completedDate)).length};
  }
  function ranks(state,end,count=7){
   const stats=state.people.map(person=>({...memberStats(state,person.id,end,count),name:person.name})),values=stats.map(s=>s.completed),max=Math.max(0,...values),min=values.length?Math.min(...values):0;
@@ -55,6 +59,6 @@
    return {task,owner,blocked,backups:backups.slice(0,3),reason:task.due&&task.due<=date?'Due by this leave date':'Open work assigned before this leave date'};
   });
  }
- const api={isDay,shift,days,dependencies,dependencyError,stampCompletion,observeCapacity,completed,memberStats,ranks,downstream,leaveImpact};
+ const api={isDay,shift,days,dependencies,dependencyError,stampCompletion,observeCapacity,completed,leaveDays,memberStats,ranks,downstream,leaveImpact};
  if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.TeamspaceAnalytics=api;
 })(globalThis);
