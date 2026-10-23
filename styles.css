@@ -37,3 +37,14 @@ header{height:auto;min-height:100px;gap:18px;flex-wrap:wrap;padding-top:14px;pad
  aside nav button:focus-visible{outline-offset:-3px}
  .aside-bottom{margin-top:18px;padding-top:18px}
 }
+
+/* Presentation controls stay visible in the review and travel with its printed context. */
+.review-filter-panel{background:#fff;border:1px solid #dce7f6;border-radius:18px;padding:23px;margin-bottom:24px}
+.review-filter-heading{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:20px}
+.review-filter-heading h2{font-size:18px;margin-top:7px}.review-filter-heading button{font-size:11px;flex-shrink:0}
+.review-filters{display:grid;grid-template-columns:repeat(auto-fit,minmax(175px,1fr));gap:16px}
+.review-filters label{font-size:11px;color:#56749b;min-width:0}.review-filters select,.review-filters input{font-size:12px;width:100%;min-width:0;margin-top:8px;padding:10px}
+.review-filter-summary{font-size:11px;margin:18px 0 0;color:#547ba6}.review-facts dd small{font-size:10px;line-height:1.6;margin-top:6px;color:#6283a8}
+.review-leave-dates>div{display:flex;gap:6px;flex-wrap:wrap;max-height:160px;overflow:auto;padding:5px 0}.review-leave-dates button{font-size:10px;padding:6px 8px}.review-leave-dates>p{font-size:11px;color:#6b83a6}
+@media(max-width:650px){.review-filter-panel{padding:17px}.review-filters{grid-template-columns:1fr 1fr;gap:12px}.review-filter-heading h2{font-size:15px}.review-filter-heading .eyelabel{font-size:8px}}
+@media print{.review-filter-heading,.review-filters{display:none}.review-filter-panel{padding:8px 12px;margin-bottom:14px}.review-filter-summary{margin:0}.review-leave-dates{display:none}}

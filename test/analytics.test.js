@@ -62,3 +62,36 @@ test('rolling leave totals cross year boundaries and include leap days',()=>{
  const state=initial();state.leaves=[{person:'p',date:'2028-02-29'},{person:'p',date:'2027-02-29'}];
  assert.equal(A.leaveDays(state,'p','2028-03-15'),1);
 });
+
+test('presentation presets use the same inclusive range for completions, charts and actual leave',()=>{
+ const state=initial();state.tasks=[];state.leaves=[];
+ for(let offset=0;offset<=90;offset++){
+  const date=A.shift(day,-offset);state.tasks.push({id:'t'+offset,title:'Delivery',person:'p',completedBy:'p',status:'Done',completedDate:date});state.leaves.push({id:'l'+offset,person:'p',date});
+ }
+ state.tasks.push({id:'future',title:'Future',person:'p',status:'Done',completedDate:A.shift(day,1)},{id:'legacy',title:'Old record',person:'p',status:'Done'});
+ state.leaves.push({id:'future',person:'p',date:A.shift(day,1)});
+ for(const count of [1,7,15,30,45,50,60,90]){
+  const report=A.presentationReport(state,day,{count}),row=report.rows.find(r=>r.person==='p');
+  assert.equal(row.completed,count);assert.equal(row.leave,count);assert.equal(row.series.length,count);assert.equal(row.series[0].date,A.shift(day,1-count));assert.equal(row.series.at(-1).date,day);assert.equal(report.total,count);assert.equal(report.leave,count);
+  assert.equal(report.rows.find(r=>r.person==='q').leave,0);
+ }
+});
+test('presentation filters, rankings and stable sorts use only matching members without changing records',()=>{
+ const state=initial();state.people[0].role='Engineer';state.people[1].role='Engineer';state.people[2].role='Lead';
+ state.tasks.push({id:'p-done',title:'Ship',person:'p',status:'Done',completedDate:day,due:day},{id:'q-done',title:'Ship late',person:'q',status:'Done',completedDate:day,due:A.shift(day,-1)},{id:'q-done2',title:'Ship second',person:'q',status:'Done',completedDate:day},{id:'blocked',title:'Waiting',person:'r',status:'Blocked',due:A.shift(day,-1)});
+ state.leaves=[{id:'l1',person:'p',date:A.shift(day,-20)},{id:'l2',person:'q',date:day}];const original=structuredClone(state);
+ const report=options=>A.presentationReport(state,day,{count:30,...options});
+ assert.deepEqual(report().rows.map(r=>r.person),['q','p','r']);assert.equal(report({person:'p'}).rows[0].tone,'neutral');
+ assert.deepEqual(report({role:'Engineer'}).rows.map(r=>r.person),['q','p']);assert.equal(report({role:'missing'}).rows.length,0);
+ for(const [focus,expected] of [['completed',['q','p']],['no-completions',['r']],['blocked',['r']],['overdue',['r']],['leave',['q','p']]])assert.deepEqual(report({focus}).rows.map(r=>r.person),expected);
+ assert.deepEqual(report({sort:'fewest'}).rows.map(r=>r.person),['r','p','q']);assert.deepEqual(report({sort:'name'}).rows.map(r=>r.person),['p','q','r']);assert.deepEqual(report({sort:'leave'}).rows.map(r=>r.person),['p','q','r']);assert.deepEqual(report({sort:'overdue'}).rows.map(r=>r.person),['r','p','q']);
+ assert.equal(report({person:'p'}).rows[0].onTime,1);assert.equal(report({person:'q'}).rows[0].onTime,0);assert.equal(report({person:'q'}).rows[0].datedDeadlines,1);
+ assert.deepEqual(state,original);
+});
+test('historical presentation excludes later leave and completions while labeling current workload separately',()=>{
+ const state=initial(),end=A.shift(day,-20);state.tasks.push({id:'old',title:'Earlier delivery',person:'p',status:'Done',completedDate:end},{id:'new',title:'Later delivery',person:'p',status:'Done',completedDate:day},{id:'overdue',title:'Now overdue',person:'p',status:'Blocked',due:A.shift(day,-1)});
+ state.leaves=[{person:'p',date:end},{person:'p',date:day},{person:'q',date:end},{person:'p',date:end}];
+ const {rows}=A.presentationReport(state,end,{count:1,today:day,person:'p'});assert.equal(rows[0].completed,1);assert.equal(rows[0].leave,1);assert.deepEqual(rows[0].leaveDates,[end]);assert.equal(rows[0].overdue,1);
+ for(const count of [0,-1,367,1.5,NaN,'60'])assert.throws(()=>A.presentationReport(state,day,{count}),RangeError);
+ assert.throws(()=>A.presentationReport(state,'2026-02-30'),RangeError);
+});
