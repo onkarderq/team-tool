@@ -13,3 +13,11 @@ test('dates and times use valid calendar days and 24-hour local clock values',()
  for(const time of ['00:00','09:30','23:59'])assert.equal(isTime(time),true);
  for(const time of ['24:00','9:30','12:60',''])assert.equal(isTime(time),false);
 });
+test('optional notepad accepts multiline plain text and rejects malformed or oversized notes',()=>{
+ const state={people:[],tasks:[],activities:[]};
+ assert.equal(valid(state),true);assert.equal('notepad' in state,false);
+ assert.equal(valid({...state,notepad:'Ideas for tomorrow\n• Follow up with the team 🤖\n<script>plain text</script>'}),true);
+ assert.equal(valid({...state,notepad:''}),true);
+ assert.equal(valid({...state,notepad:'x'.repeat(100000)}),true);
+ for(const notepad of [null,{},[],42,'x'.repeat(100001)])assert.equal(valid({...state,notepad}),false);
+});

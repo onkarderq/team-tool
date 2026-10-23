@@ -2,7 +2,7 @@ const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
-const files = {'/':'index.html','/app.js':'app.js','/ids.js':'ids.js','/styles.css':'styles.css','/derq-logo.png':'derq-logo.png','/state.js':'state.js','/calendar.js':'calendar.js','/assistant-ui.js':'assistant-ui.js'};
+const files = {'/':'index.html','/app.js':'app.js','/ids.js':'ids.js','/styles.css':'styles.css','/derq-logo.png':'derq-logo.png','/state.js':'state.js','/calendar.js':'calendar.js','/assistant-ui.js':'assistant-ui.js','/notepad.js':'notepad.js'};
 const {createAssistantRouter}=require('./assistant-server');
 function createWorkspaceServer({dataDir=process.env.DATA_DIR||path.join(__dirname,'data'),assistantPlanner}={}){
 const directory = dataDir;

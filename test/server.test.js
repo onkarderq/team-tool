@@ -13,7 +13,7 @@ test('serves assets, persists records across restart, rejects invalid and stale 
  const url='http://127.0.0.1:3197';
  try{
  await start();
- for(const [asset,content] of [['/','Derq'],['/app.js','/api/state'],['/ids.js','getRandomValues'],['/state.js','TeamspaceState'],['/calendar.js','headerReminders'],['/styles.css',':root']]){const res=await fetch(url+asset);assert.equal(res.status,200);assert.ok((await res.text()).includes(content));}
+ for(const [asset,content] of [['/','Derq AI'],['/app.js','/api/state'],['/ids.js','getRandomValues'],['/state.js','TeamspaceState'],['/calendar.js','headerReminders'],['/notepad.js','DerqNotepad'],['/assistant-ui.js','Derq AI'],['/styles.css',':root']]){const res=await fetch(url+asset);assert.equal(res.status,200);assert.ok((await res.text()).includes(content));}
  const logo=await fetch(url+'/derq-logo.png');assert.equal(logo.status,200);assert.equal(logo.headers.get('content-type'),'image/png');assert.equal(Buffer.from(await logo.arrayBuffer()).subarray(1,4).toString(),'PNG');
  assert.equal((await fetch(url+'/missing')).status,404);
  const initial=await fetch(url+'/api/state');const etag=initial.headers.get('etag');assert.deepEqual(await initial.json(),{people:[],tasks:[],activities:[]});
@@ -23,7 +23,8 @@ test('serves assets, persists records across restart, rejects invalid and stale 
  assert.equal((await put(data)).status,200);
  assert.equal((await put({people:[],tasks:[],activities:[]})).status,409);
  const current=await fetch(url+'/api/state');
- const extended={...data,people:data.people.map(p=>({...p,checkin:'2026-10-24',checkinTime:'09:30'})),tasks:data.tasks.map(t=>({...t,createdDate:'2026-10-23'})),leaves:[{id:'l1',date:'2026-10-25',person:'p1',name:'Alex'}]};
+ const extended={...data,notepad:'Prepare for tomorrow\n• Capture an idea 🤖\n<script>This stays plain text</script>',people:data.people.map(p=>({...p,checkin:'2026-10-24',checkinTime:'09:30'})),tasks:data.tasks.map(t=>({...t,createdDate:'2026-10-23'})),leaves:[{id:'l1',date:'2026-10-25',person:'p1',name:'Alex'}]};
+ assert.equal((await put({...extended,notepad:{text:'Invalid'}},current.headers.get('etag'))).status,400);
  assert.equal((await put({...extended,leaves:[{id:'bad',date:'2026-02-30',person:'p1'}]},current.headers.get('etag'))).status,400);
  assert.equal((await put({...extended,leaves:[...extended.leaves,{id:'duplicate',date:'2026-10-25',person:'p1'}]},current.headers.get('etag'))).status,400);
  assert.equal((await put(extended,current.headers.get('etag'))).status,200);

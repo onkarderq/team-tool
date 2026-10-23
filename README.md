@@ -28,9 +28,9 @@ The rounded task indicator opens **all open tasks due today**. Its color counts 
 
 The existing Docker data file is read without a forced migration. Leave records are added only when saved, preserving existing members, assignments, activities, and extra record fields.
 
-## Built-in command assistant — no API key
+## AI button and built-in commands — no API key
 
-Select the floating **CMD** assistant button at the bottom right. Built-in command mode works immediately: no API key, account, model download, or external AI service is needed. It interprets supported command formats on your own server; it is not a general AI chatbot. Type **help** or select **All commands** for examples.
+Select the floating **robot icon** at the bottom right to open **Derq AI**. The button has no text badge. Built-in command mode works immediately: no API key, account, model download, or external AI service is needed. It interprets supported command formats on your own server; it is not a general AI chatbot. Type **help** or select **All commands** for examples.
 
 Send one complete command at a time:
 
@@ -63,6 +63,12 @@ Deletions receive a separate confirmation; other explicit commands apply directl
 For more flexible language and general team questions, explicitly set `DERQ_ASSISTANT_MODE=ai` and provide `DERQ_AI_API_KEY` securely in the server environment (or the existing ignored Compose `.env`, preserving other settings), then restart/rebuild. An OpenAI API key with API billing is required only for this optional mode. `DERQ_AI_MODEL` defaults to `gpt-4.1-mini`. Keep `DERQ_ASSISTANT_MODE=local` for key-free commands; this is the default.
 
 External mode uses OpenAI's structured Responses API, with storage disabled. Commands and relevant workspace context go to OpenAI; member/activity notes and unknown fields are omitted from context. Explicit note commands are still sent as part of your message. The panel shows the active mode and privacy information. There is a shared limit of 20 AI commands per minute, one active call at a time, and a 45-second provider timeout. Never commit credentials or enter them in chat. Validate a new key with a read-only member-count question before issuing changes. Everyone who can access the shared workspace can use its assistant.
+
+## Workspace notepad
+
+Select the **notebook icon above the robot** for a plain-text notepad. Capture ideas, reminders, or anything that does not fit an assignment. Notes save automatically after a short typing pause, when you leave the field, or when you close the panel. **Save now** or **Ctrl/Cmd+Enter** saves immediately. The save status confirms persistence; **Download .txt** saves a plain-text copy, including unsaved text if the server is unavailable. Escape closes either floating panel.
+
+This is a shared workspace note, visible to everyone accessing this deployment. It supports up to 100,000 characters, preserves line breaks, and is included in JSON exports/imports and the existing Docker volume. Reload to see another session's edits. Conflicting saves preserve your local text for export instead of overwriting newer server records. Older workspaces and backups without a notepad remain compatible. Notepad contents are excluded from the optional external AI context.
 
 ## Clone and deploy locally
 

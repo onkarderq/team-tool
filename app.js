@@ -1,7 +1,7 @@
 const blank=()=>({people:[],tasks:[],activities:[]});
 let state=blank(),page='overview',filter={date:'',person:'',status:'',search:'',scope:''};
 let loaded=false, revision='', saveQueue=Promise.resolve(), saveFailed=false, saveVersion=0, memberOpen='', selectedDue='';
-function badge(text){document.querySelector('.local-badge').textContent=text;}
+function badge(text){document.querySelector('.local-badge').textContent=text;if(typeof DerqNotepad!=='undefined')DerqNotepad.refresh();}
 async function load(){
  try{
   const response=await fetch('/api/state',{cache:'no-store'});
@@ -53,6 +53,7 @@ function render(){
  else html=heading('A simple rhythm for leading well.','Spend a few minutes each day keeping your team aligned and supported.')+panel('Your quick-start guide',`<div class="guide"><ol><li><b>Add your people.</b> In Team & growth, add each member’s role, strengths, a specific growth focus, capacity, and next check-in date. Use notes for recognition and agreed next steps.</li><li><b>Plan each day.</b> In Daily tasks, add an assignment, choose its owner and work date, then set its priority and due date. Work date is the day you assign the work; due date is the deadline.</li><li><b>Keep work moving.</b> Click a task’s status pill to cycle through To do, In progress, Blocked, and Done. Change its due date directly in the row. Use Edit to explain blockers when help is needed. Filter by member, day, or status to prepare a check-in.</li><li><b>Invest in connection.</b> Plan a weekly coffee chat, peer learning session, retrospective, or celebration. Give it an owner and date. Check it off when finished; record what helped in the notes.</li><li><b>Review every week.</b> Revisit capacity and growth goals with each person. Recognize progress and agree one useful next step together.</li><li><b>Back up regularly.</b> Export backup downloads all records as JSON. Import restores a backup and replaces current records after confirmation.</li></ol><h3>Good first activities</h3><p>A 15-minute “wins and learnings” round • Pair two members for a skill swap • Monthly team lunch • A retrospective with one actionable improvement.</p><h3>Storage and privacy</h3><p>This version is a single-leader workspace. Data is saved on the server. With the documented Docker volume, records survive container replacement and restarts. All browsers accessing this deployment share one workspace; reload to see changes from other sessions. There are no member accounts, so use a private network or an authenticated HTTPS proxy. Backups include member notes: store them securely and keep notes respectful and relevant. Export regular backups; a Docker volume is not a backup.</p></div>`);
  document.querySelector('#content').innerHTML=html;
  refreshHeaderReminders();
+ if(typeof DerqNotepad!=='undefined')DerqNotepad.refresh();
  if(memberOpen&&document.querySelector('#member-detail').open)openMember(memberOpen);
  if(selectedDue&&document.querySelector('#due-detail').open)renderDueDetails();
 }
@@ -64,7 +65,7 @@ document.addEventListener('change',e=>{if(!loaded)return;if(e.target.dataset.inl
 for(const id of ['close','cancel'])document.getElementById(id).onclick=()=>document.querySelector('#editor').close();
 document.querySelector('#edit-form').onsubmit=e=>{e.preventDefault();const data=Object.fromEntries(new FormData(e.target));for(const k of Object.keys(data))data[k]=data[k].trim();if(('name'in data&&!data.name)||('title'in data&&!data.title))return notice('Please enter a name or title.');const {kind,id}=editing;if(id){const index=state[kind].findIndex(x=>x.id===id);state[kind][index]={...state[kind][index],...data,id};}else state[kind].push(newRecord(kind,data));document.querySelector('#editor').close();save();};
 document.querySelector('#export').onclick=()=>{const url=URL.createObjectURL(new Blob([JSON.stringify(state,null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download=`teamspace-${today()}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
-document.querySelector('#import').onchange=async e=>{if(!loaded)return;try{const file=e.target.files[0];if(!file)return;if(file.size>5e6)throw Error();const data=JSON.parse(await file.text());if(!valid(data))throw Error();if(confirm('Replace all current records with this backup? Export first if you want to keep them.')){state=data;save();}}catch{notice('Could not import this file. Choose a valid Teamspace JSON backup under 5 MB.');}finally{e.target.value='';}};
+document.querySelector('#import').onchange=async e=>{if(!loaded)return;try{const file=e.target.files[0];if(!file)return;if(file.size>5e6)throw Error();const data=JSON.parse(await file.text());if(!valid(data))throw Error();if(confirm('Replace all current records with this backup? Export first if you want to keep them.')){if(typeof DerqNotepad!=='undefined')DerqNotepad.flush();state=data;save();}}catch{notice('Could not import this file. Choose a valid Teamspace JSON backup under 5 MB.');}finally{e.target.value='';}};
 document.querySelector('#content').textContent='Loading workspace…';
 updateClock();
 setInterval(updateClock,1000);

@@ -3,17 +3,16 @@
  let available=false,busy=false,history=[],activeDecision=null;
  function addMessage(role,text){
   const row=document.createElement('div');row.className='assistant-message '+role;
-  const label=document.createElement('span');label.className='assistant-message-label';label.textContent=role==='user'?'You':'Derq assistant';
+  const label=document.createElement('span');label.className='assistant-message-label';label.textContent=role==='user'?'You':'Derq AI';
   const content=document.createElement('p');content.textContent=text;row.append(label,content);messages.append(row);messages.scrollTop=messages.scrollHeight;
   history.push({role,content:text.slice(0,2000)});history=history.slice(-8);return row;
  }
- function setBusy(value){busy=value;send.disabled=value||!available;input.disabled=value;document.querySelector('#assistant-close').disabled=value;document.querySelector('#assistant-working').hidden=!value;launcher.classList.toggle('is-working',value);}
+ function setBusy(value){busy=value;send.disabled=value||!available;input.disabled=value;document.querySelector('#assistant-close').disabled=value;document.querySelector('#assistant-working').hidden=!value;launcher.classList.toggle('is-working',value);document.querySelector('#notepad-launcher').disabled=value;}
  async function checkConnection(){
   try{
    const response=await fetch('/api/assistant/status',{cache:'no-store'});if(!response.ok)throw Error();const status=await response.json();available=status.configured===true;
    const local=status.mode==='local';
    document.querySelector('#assistant-connection').textContent=local?'Built-in commands · no API key needed':available?'AI configured · ready for commands':'AI key needed · not connected';
-   document.querySelector('.assistant-launcher-label').textContent=local?'CMD':'AI';
    document.querySelector('.assistant-privacy').textContent=local?'Built-in command mode: no external AI service. Use one supported command at a time; type “help” for examples. Changes save to your shared workspace.':'Commands and workspace context go to OpenAI. Member and activity notes stay out of the AI context. Changes save to your shared workspace.';
    if(available)messages.querySelector('.assistant-setup')?.remove();
    if(!available&&!messages.querySelector('.assistant-setup')){
@@ -22,8 +21,9 @@
   }catch{document.querySelector('#assistant-connection').textContent='Could not connect to the assistant';available=false;}
   send.disabled=busy||!available;
  }
- function open(){panel.hidden=false;launcher.setAttribute('aria-expanded','true');input.focus();checkConnection();}
- function close(force=false){if(busy&&!force)return;panel.hidden=true;launcher.setAttribute('aria-expanded','false');launcher.focus();}
+ function open(){DerqNotepad.close(false);panel.hidden=false;launcher.setAttribute('aria-expanded','true');input.focus();checkConnection();}
+ function close(force=false){if(busy&&!force)return false;panel.hidden=true;launcher.setAttribute('aria-expanded','false');launcher.focus();return true;}
+ window.DerqAssistant={close};
  launcher.onclick=()=>panel.hidden?open():close();document.querySelector('#assistant-close').onclick=close;
  panel.addEventListener('keydown',event=>{if(event.key==='Escape'&&!busy){event.preventDefault();close();}});
  input.addEventListener('keydown',event=>{if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();if(!busy&&available)document.querySelector('#assistant-form').requestSubmit();}});
@@ -36,11 +36,12 @@
  async function synchronize(){
   if(!loaded)throw Error('Wait for the workspace to load before sending commands.');
   document.querySelectorAll('[data-inline][data-dirty="true"]').forEach(control=>commitInline(control));
+  DerqNotepad.flush();
   await saveQueue;
   if(saveFailed)throw Error('Your workspace has unsaved changes. Export your edits and reload before using the assistant.');
  }
  function applyResponse(data,etag,version){
-  const draft=document.querySelector('[data-inline][data-dirty="true"]')||document.querySelector('#editor').open||document.querySelector('#leave-editor').open;
+  const draft=DerqNotepad.isDirty()||document.querySelector('[data-inline][data-dirty="true"]')||document.querySelector('#editor').open||document.querySelector('#leave-editor').open;
   if(saveVersion!==version||saveFailed||draft){saveFailed=true;badge('● Unsaved changes');notice('The assistant updated the server while you were editing. Export your local edits, then reload to see the saved workspace.');return false;}
   if(!valid(data.state))throw Error('The assistant returned invalid workspace data. Reload to check the saved state.');
   state=data.state;revision=etag;render();badge('● Saved to server');notice('');return true;

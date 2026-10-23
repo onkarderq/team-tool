@@ -9,7 +9,7 @@ const {applyPlan}=require('../assistant-actions');
 const {planCommand,projectContext}=require('../assistant-provider');
 const {createWorkspaceServer}=require('../server');
 const day='2026-10-24';
-const initial=()=>({people:[{id:'p1',name:'Devendra',role:'Engineer',notes:'Private existing note',legacy:'keep'}],tasks:[{id:'t1',title:'Deploy',person:'p1',date:'2026-10-23',due:day,status:'To do',priority:'Medium',createdDate:'2026-10-23',extra:'preserve'}],activities:[{id:'a1',title:'Wins',status:'Planned',notes:'Private activity notes'}],leaves:[{id:'l1',person:'p1',name:'Devendra',date:'2026-11-01'}]});
+const initial=()=>({people:[{id:'p1',name:'Devendra',role:'Engineer',notes:'Private existing note',legacy:'keep'}],tasks:[{id:'t1',title:'Deploy',person:'p1',date:'2026-10-23',due:day,status:'To do',priority:'Medium',createdDate:'2026-10-23',extra:'preserve'}],activities:[{id:'a1',title:'Wins',status:'Planned',notes:'Private activity notes'}],leaves:[{id:'l1',person:'p1',name:'Devendra',date:'2026-11-01'}],notepad:'Private workspace notepad'});
 const action=(kind,id='',changes={},dates=[],page='')=>({kind,id,changes:Object.entries(changes).map(([field,value])=>({field,value})),dates,page});
 const plan=(...actions)=>({message:'Plan',actions});
 test('assistant creates a member and records exactly two leave dates atomically',()=>{
@@ -46,7 +46,7 @@ test('provider uses structured responses and never sends member/activity notes o
   return {ok:true,json:async()=>({status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify(plan(action('create_member','new',{name:'Maya'})))}]}]})};
  });
  assert.equal(result.actions[0].kind,'create_member');assert.equal(payload.store,false);assert.equal(payload.text.format.strict,true);
- const context=JSON.stringify(projectContext(initial()));assert.ok(!context.includes('Private existing note'));assert.ok(!context.includes('Private activity notes'));assert.ok(!context.includes('preserve'));
+ const context=JSON.stringify(projectContext(initial()));assert.ok(!context.includes('Private existing note'));assert.ok(!context.includes('Private activity notes'));assert.ok(!context.includes('Private workspace notepad'));assert.ok(!context.includes('preserve'));
  for(const fake of [async()=>({ok:false,status:401}),async()=>({ok:true,json:async()=>({status:'incomplete'})}),async()=>({ok:true,json:async()=>({status:'completed',output:[]})}),async()=>{throw Error('network');}])await assert.rejects(()=>planCommand({message:'Hi',history:[],today:day,timezone:'Asia/Kolkata',state:initial()},fake));
  }finally{if(previous===undefined)delete process.env.DERQ_AI_API_KEY;else process.env.DERQ_AI_API_KEY=previous;}
 });
@@ -64,7 +64,7 @@ test('HTTP assistant saves to disk, deduplicates request IDs, and supports a pro
  let calls=0;const f=await fixture(t,async()=>{calls++;return plan(action('create_member','new',{name:'Maya Rao',role:'Deployment Engineer'}));});
  const before=await f.read(),body=f.command('Add Maya Rao');
  const response=await f.post('/api/assistant',body,before.etag);assert.equal(response.status,200);const result=await response.json();
- assert.equal(result.state.people.length,2);assert.ok(result.undoToken);assert.equal(JSON.parse(readFileSync(join(f.dir,'teamspace.json'),'utf8')).people.length,2);
+ assert.equal(result.state.people.length,2);assert.equal(result.state.notepad,'Private workspace notepad');assert.ok(result.undoToken);assert.equal(JSON.parse(readFileSync(join(f.dir,'teamspace.json'),'utf8')).people.length,2);
  const replay=await f.post('/api/assistant',body,before.etag);assert.equal(replay.status,200);assert.equal((await replay.json()).state.people.length,2);assert.equal(calls,1);
  const undo=await f.post('/api/assistant/undo',{token:result.undoToken},response.headers.get('etag'));assert.equal(undo.status,200);assert.equal((await undo.json()).state.people.length,1);
 });
@@ -73,10 +73,10 @@ test('HTTP deletion is only applied after confirmation and stale undo never over
  const previewResponse=await f.post('/api/assistant',f.command('Delete Devendra'),before.etag),preview=await previewResponse.json();
  assert.equal(preview.requiresConfirmation,true);assert.equal((await f.read()).state.people.length,1);
  const confirmed=await f.post('/api/assistant/confirm',{token:preview.confirmationToken},before.etag);assert.equal(confirmed.status,200);const saved=await confirmed.json();assert.equal(saved.state.people.length,0);
- const edited=structuredClone(saved.state);edited.activities[0].title='Newer edit';
+ const edited=structuredClone(saved.state);edited.activities[0].title='Newer edit';edited.notepad='Newer notepad edit';
  const manual=await f.post('/api/state',edited,confirmed.headers.get('etag'));assert.equal(manual.status,405);
  const put=await fetch(f.url+'/api/state',{method:'PUT',headers:{'Content-Type':'application/json','If-Match':confirmed.headers.get('etag')},body:JSON.stringify(edited)});assert.equal(put.status,200);
- const stopped=await f.post('/api/assistant/undo',{token:saved.undoToken},put.headers.get('etag'));assert.equal(stopped.status,409);assert.equal((await f.read()).state.activities[0].title,'Newer edit');
+ const stopped=await f.post('/api/assistant/undo',{token:saved.undoToken},put.headers.get('etag'));assert.equal(stopped.status,409);assert.equal((await f.read()).state.activities[0].title,'Newer edit');assert.equal((await f.read()).state.notepad,'Newer notepad edit');
 });
 test('HTTP assistant rejects changes made while planning and cross-site commands',async t=>{
  let release;const gate=new Promise(resolve=>release=resolve);

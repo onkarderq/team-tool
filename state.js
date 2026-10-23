@@ -8,6 +8,7 @@
  function records(items){return Array.isArray(items)&&items.every(item=>item&&typeof item.id==='string'&&Object.values(item).every(value=>typeof value==='string'));}
  function valid(state){
   if(!state||!['people','tasks','activities'].every(key=>records(state[key]))||!state.people.every(p=>p.name)||!state.tasks.every(t=>t.title)||!state.activities.every(a=>a.title))return false;
+  if(state.notepad!==undefined&&(typeof state.notepad!=='string'||state.notepad.length>100000))return false;
   if(state.leaves!==undefined){
    if(!records(state.leaves)||!state.leaves.every(leave=>leave.person&&isDay(leave.date)))return false;
    if(new Set(state.leaves.map(leave=>JSON.stringify([leave.date,leave.person]))).size!==state.leaves.length)return false;
