@@ -8,7 +8,7 @@ function app(data){
  const context=vm.createContext({document:{querySelector:element,querySelectorAll:()=>[],getElementById:element,addEventListener(){}},window:{addEventListener(){}},fetch:()=>new Promise(()=>{}),setInterval(){},Intl,Date});
  vm.runInContext(readFileSync(require.resolve('../app.js'),'utf8'),context);
  context.fixture=data;vm.runInContext('state=fixture',context);
- return {run:code=>vm.runInContext(code,context),element};
+ return {run:code=>vm.runInContext(code,context),element,setFetch:fetch=>{context.fetch=fetch;}};
 }
 test('member profile shows active work and exactly four most recent dated assignments',()=>{
  const fixture={people:[{id:'p1',name:'Alex',strengths:'Mentoring & ownership'}],tasks:Array.from({length:6},(_,i)=>({id:'t'+i,title:'Task '+i,person:'p1',date:'2026-01-0'+(i+1),status:i===5?'Blocked':'Done'})),activities:[]};
@@ -76,4 +76,54 @@ test('planning chart counts only open assignments due within its seven-day windo
  assert.ok(html.includes('1 scheduled'));
  assert.ok(html.includes('Today '+view.run('today()')+': 1'));
  assert.ok(!html.includes('No open assignments have due dates'));
+});
+
+test('quick edits preserve record identity, legacy fields, and unrelated data',()=>{
+ const fixture={people:[{id:'p1',name:'Alex',capacity:'Balanced',notes:'Keep me',legacy:'custom'}],tasks:[{id:'t1',title:'Ship',status:'To do',due:'2026-01-01',person:'p1',outcome:'Existing impact'}],activities:[]};
+ const view=app(fixture);view.run('loaded=true');
+ assert.equal(view.run("applyInlineEdit('people','p1','strengths','  Mentoring & ownership  ')"),true);
+ assert.equal(fixture.people[0].strengths,'Mentoring & ownership');
+ assert.equal(view.run("applyInlineEdit('people','p1','capacity','At capacity')"),true);
+ assert.equal(view.run("capacityLabel(state.people[0].capacity)"),'Maximum');
+ assert.equal(view.run("applyInlineEdit('tasks','t1','status','In progress')"),true);
+ assert.equal(view.run("applyInlineEdit('tasks','t1','due','')"),true);
+ assert.equal(fixture.people[0].legacy,'custom');
+ assert.equal(fixture.people[0].notes,'Keep me');
+ assert.equal(fixture.tasks[0].outcome,'Existing impact');
+ assert.equal(fixture.tasks[0].person,'p1');
+ assert.equal(view.run("applyInlineEdit('tasks','t1','title','Overwrite')"),false);
+ assert.equal(view.run("applyInlineEdit('tasks','missing','due','2026-02-01')"),false);
+ for(const due of ['2026-02-30','not a date','0000-01-01'])assert.equal(view.run(`applyInlineEdit('tasks','t1','due','${due}')`),false);
+ assert.equal(view.run("applyInlineEdit('tasks','t1','status','invented')"),false);
+ view.run('loaded=false');
+ assert.equal(view.run("applyInlineEdit('people','p1','focus','Cannot edit before load')"),false);
+});
+test('rapid quick edits keep the saving indicator until the final revision is stored',async()=>{
+ const view=app({people:[{id:'p1',name:'Alex',capacity:'Balanced'}],tasks:[],activities:[]});
+ const requests=[],releases=[];
+ view.setFetch((url,options)=>{requests.push(options);return new Promise(resolve=>releases.push(resolve));});
+ view.run("loaded=true;revision='first';applyInlineEdit('people','p1','capacity','At capacity');save({refresh:false});applyInlineEdit('people','p1','capacity','Available');save({refresh:false})");
+ await new Promise(setImmediate);
+ assert.equal(requests.length,1);
+ releases[0]({ok:true,headers:{get:()=> 'second'}});
+ await new Promise(setImmediate);
+ assert.equal(requests.length,2);
+ assert.equal(requests[1].headers['If-Match'],'second');
+ assert.equal(JSON.parse(requests[1].body).people[0].capacity,'Available');
+ assert.equal(view.element('.local-badge').textContent,'● Saving…');
+ releases[1]({ok:true,headers:{get:()=> 'third'}});
+ await view.run('saveQueue');
+ assert.equal(view.element('.local-badge').textContent,'● Saved to server');
+});
+test('a quick-edit conflict retains local edits and never reports subsequent edits as saved',async()=>{
+ const view=app({people:[{id:'p1',name:'Alex',capacity:'Balanced'}],tasks:[],activities:[]});
+ let writes=0;view.setFetch(async()=>{writes++;return {ok:false,status:409};});
+ view.run("loaded=true;applyInlineEdit('people','p1','capacity','At capacity');save({refresh:false})");
+ await view.run('saveQueue');
+ view.run("applyInlineEdit('people','p1','strengths','Local edit to export');save({refresh:false})");
+ await view.run('saveQueue');
+ assert.equal(writes,1);
+ assert.equal(view.run('state.people[0].strengths'),'Local edit to export');
+ assert.equal(view.element('.local-badge').textContent,'● Unsaved changes');
+ assert.match(view.element('#notice').textContent,/Another session/);
 });
