@@ -1,12 +1,13 @@
 FROM node:24-alpine
 
 ENV NODE_ENV=production \
+    NODE_USE_ENV_PROXY=1 \
     PORT=3000 \
     DATA_DIR=/app/data
 WORKDIR /app
 
 # No third-party runtime dependencies are needed.
-COPY --chown=node:node package.json server.js index.html app.js ids.js styles.css derq-logo.png state.js calendar.js ./
+COPY --chown=node:node package.json server.js index.html app.js ids.js styles.css derq-logo.png state.js calendar.js assistant-actions.js assistant-provider.js assistant-server.js assistant-ui.js ./
 
 RUN mkdir -p /app/data && chown node:node /app/data
 VOLUME ["/app/data"]

@@ -2,8 +2,10 @@ const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
-const files = {'/':'index.html','/app.js':'app.js','/ids.js':'ids.js','/styles.css':'styles.css','/derq-logo.png':'derq-logo.png','/state.js':'state.js','/calendar.js':'calendar.js'};
-const directory = process.env.DATA_DIR || path.join(__dirname, 'data');
+const files = {'/':'index.html','/app.js':'app.js','/ids.js':'ids.js','/styles.css':'styles.css','/derq-logo.png':'derq-logo.png','/state.js':'state.js','/calendar.js':'calendar.js','/assistant-ui.js':'assistant-ui.js'};
+const {createAssistantRouter}=require('./assistant-server');
+function createWorkspaceServer({dataDir=process.env.DATA_DIR||path.join(__dirname,'data'),assistantPlanner}={}){
+const directory = dataDir;
 fs.mkdirSync(directory, {recursive:true});
 const dataFile = path.join(directory, 'teamspace.json');
 const {valid}=require('./state');
@@ -19,8 +21,10 @@ if (!fs.existsSync(dataFile)) persist({people:[],tasks:[],activities:[]});
 function read() { const data = JSON.parse(fs.readFileSync(dataFile, 'utf8')); if (!valid(data)) throw Error('Invalid stored data'); return data; }
 read(); // Fail startup rather than overwrite unreadable data.
 const revision = data => '"' + crypto.createHash('sha256').update(JSON.stringify(data)).digest('hex') + '"';
+const assistantRoute=createAssistantRouter({read,persist,revision,...(assistantPlanner?{planner:assistantPlanner,configured:()=>true}:{})});
 const server = http.createServer(async (req,res)=>{
  const url = req.url.split('?')[0];
+ if(url.startsWith('/api/assistant'))return assistantRoute(req,res,url);
  if (url === '/api/state') {
   res.setHeader('Content-Type','application/json');
   res.setHeader('Cache-Control','no-store');
@@ -46,5 +50,11 @@ const server = http.createServer(async (req,res)=>{
  res.setHeader('Cache-Control','no-cache');
  fs.createReadStream(path.join(__dirname,file)).pipe(res);
 });
-server.listen(process.env.PORT || 3000,'0.0.0.0',()=>console.log('Teamspace running on port '+(process.env.PORT || 3000)));
-for(const signal of ['SIGTERM','SIGINT'])process.on(signal,()=>server.close(()=>process.exit(0)));
+ return server;
+}
+if(require.main===module){
+ const server=createWorkspaceServer();
+ server.listen(process.env.PORT||3000,'0.0.0.0',()=>console.log('Derq running on port '+(process.env.PORT||3000)));
+ for(const signal of ['SIGTERM','SIGINT'])process.on(signal,()=>server.close(()=>process.exit(0)));
+}
+module.exports={createWorkspaceServer};

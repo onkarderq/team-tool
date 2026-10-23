@@ -28,6 +28,26 @@ The rounded task indicator opens **all open tasks due today**. Its color counts 
 
 The existing Docker data file is read without a forced migration. Leave records are added only when saved, preserving existing members, assignments, activities, and extra record fields.
 
+## AI command assistant
+
+Select the floating **AI** button at the bottom right and type a command. Examples:
+
+- “Add Maya Rao as a Deployment and Configuration Engineer.”
+- “Mark Maya Rao on leave on 2026-10-26 and 2026-10-28.”
+- “Assign the deployment checklist to Maya, due tomorrow, high priority.”
+- “Schedule a one-to-one with Maya tomorrow at 10:30 AM.”
+- “Change the deployment checklist to Done.”
+- “Append a coaching note for Maya: lead the next handover.”
+- “Show today’s due tasks” or “Export a backup.”
+
+The assistant uses the OpenAI Responses API with structured output. An **OpenAI API key with API billing** is required; ChatGPT sign-in alone does not enable API access. Set **DERQ_AI_API_KEY** in the server environment. For Docker Compose, add the value securely to the existing ignored `.env` file beside `compose.yaml`, preserving other settings, then run `docker compose up -d --build`. Never commit the key or enter it in the assistant chat. `DERQ_AI_MODEL` optionally selects another model supporting structured Responses output; the default is `gpt-4.1-mini`. The assistant clearly shows setup instructions and disables commands until a key is configured; the rest of the app works without one.
+
+Commands can create, edit, or delete members, assignments, and activities; set/remove specific leave dates; update capacity, strengths, growth focus, notes, and check-in dates/times; navigate views; show profiles or due tasks; and start backup export/import. Import still requires selecting a file and accepting the existing replacement confirmation. Ambiguous requests should prompt a clarification. Deletions receive a separate confirmation; other explicit commands apply directly. An **Undo this change** button restores the preceding snapshot for up to ten minutes, provided no newer edits would be overwritten. Confirmations/undo expire on server restart, while saved records remain on the Docker volume.
+
+All changes are validated and committed atomically with revision checks. Creation dates and unknown existing record fields are preserved. The assistant cannot execute shell commands, fetch arbitrary URLs, or directly access files. There is a shared limit of 20 AI requests per minute, one active model call at a time, and a 45-second provider timeout. Server credentials never reach the browser. Commands and relevant team/task/calendar context are sent to OpenAI with Responses storage disabled; member and activity `notes` fields and unknown record fields are omitted. Explicit note-append commands preserve existing notes on the server. Chat history is kept only in the current browser page until reload.
+
+Keep this deployment behind your private network or authenticated proxy: everyone who can access the workspace can also use its configured assistant. AI interpretation depends on the model; review results and use Undo when needed. To validate a new key, ask a read-only question such as “How many team members are there?” before issuing changes.
+
 ## Clone and deploy locally
 
 Install Git and Docker Desktop (Windows/macOS) or Docker Engine with the Compose plugin (Linux). Start Docker, then run:
