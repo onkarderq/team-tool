@@ -2,7 +2,7 @@ const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
-const files = {'/':'index.html','/app.js':'app.js','/ids.js':'ids.js','/styles.css':'styles.css'};
+const files = {'/':'index.html','/app.js':'app.js','/ids.js':'ids.js','/styles.css':'styles.css','/derq-logo.png':'derq-logo.png'};
 const directory = process.env.DATA_DIR || path.join(__dirname, 'data');
 fs.mkdirSync(directory, {recursive:true});
 const dataFile = path.join(directory, 'teamspace.json');
@@ -42,7 +42,7 @@ const server = http.createServer(async (req,res)=>{
  const file=files[url];
  if(!file){res.writeHead(404);return res.end('Not found');}
  if(req.method!=='GET'&&req.method!=='HEAD'){res.writeHead(405);return res.end();}
- res.setHeader('Content-Type',file.endsWith('.js')?'text/javascript':file.endsWith('.css')?'text/css':'text/html');
+ res.setHeader('Content-Type',file.endsWith('.png')?'image/png':file.endsWith('.js')?'text/javascript':file.endsWith('.css')?'text/css':'text/html');
  res.setHeader('Cache-Control','no-cache');
  fs.createReadStream(path.join(__dirname,file)).pipe(res);
 });
