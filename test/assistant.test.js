@@ -88,9 +88,22 @@ test('HTTP assistant rejects changes made while planning and cross-site commands
  assert.equal((await pending).status,409);assert.equal((await f.read()).state.people.length,1);assert.equal((await f.read()).state.people[0].role,'Changed concurrently');
  assert.equal((await f.post('/api/assistant',f.command('Hi'),before.etag,{'Sec-Fetch-Site':'cross-site'})).status,403);
 });
-test('production assistant without a key exposes setup status and performs no writes',async t=>{
- const previous=process.env.DERQ_AI_API_KEY;delete process.env.DERQ_AI_API_KEY;
- try{const f=await fixture(t),before=await f.read();const status=await (await fetch(f.url+'/api/assistant/status')).json();assert.equal(status.configured,false);assert.ok(!('key' in status));
+test('default production assistant executes built-in commands without a key',async t=>{
+ const previous=process.env.DERQ_AI_API_KEY,previousMode=process.env.DERQ_ASSISTANT_MODE;delete process.env.DERQ_AI_API_KEY;delete process.env.DERQ_ASSISTANT_MODE;
+ try{
+  const f=await fixture(t),before=await f.read();
+  const status=await (await fetch(f.url+'/api/assistant/status')).json();assert.deepEqual(status,{configured:true,mode:'local',model:null});
+  const response=await f.post('/api/assistant',f.command('Add Maya Rao as a Deployment and Configuration Engineer'),before.etag);assert.equal(response.status,200);
+  const added=await response.json(),maya=added.state.people.find(p=>p.name==='Maya Rao');assert.equal(maya.role,'Deployment and Configuration Engineer');
+  const leaveResponse=await f.post('/api/assistant',f.command('Mark Maya Rao on leave on 2026-10-26 and 2026-10-28'),response.headers.get('etag'));assert.equal(leaveResponse.status,200);
+  const saved=await leaveResponse.json();assert.deepEqual(saved.state.leaves.filter(l=>l.person===maya.id).map(l=>l.date),['2026-10-26','2026-10-28']);assert.equal(saved.state.people[0].legacy,'keep');
+  assert.deepEqual(JSON.parse(readFileSync(join(f.dir,'teamspace.json'),'utf8')),saved.state);
+  const unknown=await f.post('/api/assistant',f.command('Mark an unknown person on leave tomorrow'),leaveResponse.headers.get('etag'));assert.equal(unknown.status,200);assert.equal((await unknown.json()).changed,false);assert.deepEqual((await f.read()).state,saved.state);
+ }finally{if(previous===undefined)delete process.env.DERQ_AI_API_KEY;else process.env.DERQ_AI_API_KEY=previous;if(previousMode===undefined)delete process.env.DERQ_ASSISTANT_MODE;else process.env.DERQ_ASSISTANT_MODE=previousMode;}
+});
+test('external AI mode is explicit and still requires a key',async t=>{
+ const previous=process.env.DERQ_AI_API_KEY,previousMode=process.env.DERQ_ASSISTANT_MODE;delete process.env.DERQ_AI_API_KEY;process.env.DERQ_ASSISTANT_MODE='ai';
+ try{const f=await fixture(t),before=await f.read();const status=await (await fetch(f.url+'/api/assistant/status')).json();assert.equal(status.configured,false);assert.equal(status.mode,'ai');assert.ok(!('key' in status));
  const response=await f.post('/api/assistant',f.command('Add Maya'),before.etag);assert.equal(response.status,503);assert.deepEqual((await f.read()).state,before.state);
- }finally{if(previous!==undefined)process.env.DERQ_AI_API_KEY=previous;}
+ }finally{if(previous===undefined)delete process.env.DERQ_AI_API_KEY;else process.env.DERQ_AI_API_KEY=previous;if(previousMode===undefined)delete process.env.DERQ_ASSISTANT_MODE;else process.env.DERQ_ASSISTANT_MODE=previousMode;}
 });

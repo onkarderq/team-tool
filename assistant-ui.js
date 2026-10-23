@@ -11,11 +11,15 @@
  async function checkConnection(){
   try{
    const response=await fetch('/api/assistant/status',{cache:'no-store'});if(!response.ok)throw Error();const status=await response.json();available=status.configured===true;
-   document.querySelector('#assistant-connection').textContent=available?'AI configured · ready for commands':'AI key needed · not connected';
+   const local=status.mode==='local';
+   document.querySelector('#assistant-connection').textContent=local?'Built-in commands · no API key needed':available?'AI configured · ready for commands':'AI key needed · not connected';
+   document.querySelector('.assistant-launcher-label').textContent=local?'CMD':'AI';
+   document.querySelector('.assistant-privacy').textContent=local?'Built-in command mode: no external AI service. Use one supported command at a time; type “help” for examples. Changes save to your shared workspace.':'Commands and workspace context go to OpenAI. Member and activity notes stay out of the AI context. Changes save to your shared workspace.';
+   if(available)messages.querySelector('.assistant-setup')?.remove();
    if(!available&&!messages.querySelector('.assistant-setup')){
     const note=document.createElement('div');note.className='assistant-setup';note.textContent='AI commands need a server-side DERQ_AI_API_KEY. Add it securely to the server environment and restart. Your key is never entered in this chat.';messages.append(note);
    }
-  }catch{document.querySelector('#assistant-connection').textContent='Could not check AI configuration';available=false;}
+  }catch{document.querySelector('#assistant-connection').textContent='Could not connect to the assistant';available=false;}
   send.disabled=busy||!available;
  }
  function open(){panel.hidden=false;launcher.setAttribute('aria-expanded','true');input.focus();checkConnection();}
@@ -25,7 +29,7 @@
  input.addEventListener('keydown',event=>{if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();if(!busy&&available)document.querySelector('#assistant-form').requestSubmit();}});
  document.querySelectorAll('[data-assistant-example]').forEach(button=>button.onclick=()=>{
   const name=state.people[0]?.name||'Maya Rao',tomorrow=new Date();tomorrow.setDate(tomorrow.getDate()+1);
-  const prompts={member:'Add Maya Rao as a Deployment and Configuration Engineer.',leave:`Mark ${name} on leave on ${today()} and ${localDateKey(tomorrow)}.`,task:`Assign "Prepare deployment checklist" to ${name}, due ${localDateKey(tomorrow)}, high priority.`,checkin:`Schedule a one-to-one with ${name} tomorrow at 10:30 AM.`};
+  const prompts={member:'Add Maya Rao as a Deployment and Configuration Engineer.',leave:`Mark ${name} on leave on ${today()} and ${localDateKey(tomorrow)}.`,task:`Assign "Prepare deployment checklist" to ${name}, due ${localDateKey(tomorrow)}, high priority.`,checkin:`Schedule a one-to-one with ${name} tomorrow at 10:30 AM.`,help:'help'};
   input.value=prompts[button.dataset.assistantExample];input.focus();
  });
  function invalidateDecision(){if(activeDecision){activeDecision.querySelectorAll('button').forEach(button=>button.disabled=true);activeDecision=null;}}

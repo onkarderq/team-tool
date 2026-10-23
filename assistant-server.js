@@ -2,7 +2,9 @@ const {randomUUID,createHash}=require('node:crypto');
 const {isDay}=require('./state');
 const {applyPlan,AssistantError}=require('./assistant-actions');
 const {planCommand,model}=require('./assistant-provider');
-function createAssistantRouter({read,persist,revision,planner=planCommand,configured=()=>Boolean(process.env.DERQ_AI_API_KEY)}){
+const {parseCommand}=require('./assistant-local');
+const mode=()=>process.env.DERQ_ASSISTANT_MODE==='ai'?'ai':'local';
+function createAssistantRouter({read,persist,revision,planner=input=>mode()==='ai'?planCommand(input):parseCommand(input),configured=()=>mode()==='local'||Boolean(process.env.DERQ_AI_API_KEY)}){
  const pending=new Map(),undos=new Map(),requests=new Map();let busy=false,windowStart=0,used=0;
  const ttl=10*60*1000;
  const clean=()=>{for(const map of [pending,undos,requests])for(const [key,value] of map)if(value.expires<Date.now())map.delete(key);};
@@ -24,7 +26,7 @@ function createAssistantRouter({read,persist,revision,planner=planCommand,config
   const reply=(status,data)=>{res.statusCode=status;res.setHeader('Content-Type','application/json');res.setHeader('Cache-Control','no-store');if(data.etag)res.setHeader('ETag',data.etag);res.end(JSON.stringify(data));};
   try{
    clean();
-   if(url==='/api/assistant/status'&&req.method==='GET')return reply(200,{configured:configured(),model:model()});
+   if(url==='/api/assistant/status'&&req.method==='GET')return reply(200,{configured:configured(),mode:mode(),model:mode()==='ai'?model():null});
    if(req.method!=='POST')return reply(405,{error:'Use POST for assistant commands.'});
    if(req.headers['sec-fetch-site']==='cross-site')return reply(403,{error:'Cross-site assistant requests are not allowed.'});
    if(!req.headers['content-type']?.startsWith('application/json'))return reply(415,{error:'JSON required.'});
@@ -53,7 +55,7 @@ function createAssistantRouter({read,persist,revision,planner=planCommand,config
    if(prior){if(prior.fingerprint!==fingerprint)throw new AssistantError('This request ID was already used for a different command.',409);return reply(200,snapshot(prior.result));}
    if(!configured())throw new AssistantError('AI is not configured. Add DERQ_AI_API_KEY securely to the server environment and restart the app.',503);
    if(busy)throw new AssistantError('The assistant is handling another command. Try again in a moment.',429);
-   if(Date.now()-windowStart>60000){windowStart=Date.now();used=0;}if(used>=20)throw new AssistantError('Assistant limit reached. Wait a minute before sending another command.',429);
+   if(Date.now()-windowStart>60000){windowStart=Date.now();used=0;}if(used>=(mode()==='ai'?20:120))throw new AssistantError('Assistant limit reached. Wait a minute before sending another command.',429);
    const before=read();assertRevision(req,before);const base=revision(before);let plan;
    busy=true;used++;
    try{plan=await planner({message:input.message.trim(),history,today:input.today,timezone:input.timezone,state:before});}finally{busy=false;}

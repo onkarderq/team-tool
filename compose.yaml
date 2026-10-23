@@ -4,6 +4,7 @@ services:
     ports:
       - "${TEAMSPACE_BIND_IP:-127.0.0.1}:${TEAMSPACE_HOST_PORT:-3000}:3000"
     environment:
+      DERQ_ASSISTANT_MODE: "${DERQ_ASSISTANT_MODE:-local}"
       DERQ_AI_API_KEY: "${DERQ_AI_API_KEY:-}"
       DERQ_AI_MODEL: "${DERQ_AI_MODEL:-gpt-4.1-mini}"
     restart: unless-stopped

@@ -28,25 +28,41 @@ The rounded task indicator opens **all open tasks due today**. Its color counts 
 
 The existing Docker data file is read without a forced migration. Leave records are added only when saved, preserving existing members, assignments, activities, and extra record fields.
 
-## AI command assistant
+## Built-in command assistant — no API key
 
-Select the floating **AI** button at the bottom right and type a command. Examples:
+Select the floating **CMD** assistant button at the bottom right. Built-in command mode works immediately: no API key, account, model download, or external AI service is needed. It interprets supported command formats on your own server; it is not a general AI chatbot. Type **help** or select **All commands** for examples.
 
-- “Add Maya Rao as a Deployment and Configuration Engineer.”
-- “Mark Maya Rao on leave on 2026-10-26 and 2026-10-28.”
-- “Assign the deployment checklist to Maya, due tomorrow, high priority.”
-- “Schedule a one-to-one with Maya tomorrow at 10:30 AM.”
-- “Change the deployment checklist to Done.”
-- “Append a coaching note for Maya: lead the next handover.”
-- “Show today’s due tasks” or “Export a backup.”
+Send one complete command at a time:
 
-The assistant uses the OpenAI Responses API with structured output. An **OpenAI API key with API billing** is required; ChatGPT sign-in alone does not enable API access. Set **DERQ_AI_API_KEY** in the server environment. For Docker Compose, add the value securely to the existing ignored `.env` file beside `compose.yaml`, preserving other settings, then run `docker compose up -d --build`. Never commit the key or enter it in the assistant chat. `DERQ_AI_MODEL` optionally selects another model supporting structured Responses output; the default is `gpt-4.1-mini`. The assistant clearly shows setup instructions and disables commands until a key is configured; the rest of the app works without one.
+- `Add Maya Rao as a Deployment and Configuration Engineer`
+- `Mark Maya Rao on leave on 2026-10-26 and 2026-10-28`
+- `Mark Maya Rao on leave from 2026-10-26 to 2026-10-28`
+- `Remove leave for Maya Rao on 2026-10-26`
+- `Assign "Deployment checklist" to Maya Rao, due tomorrow, high priority`
+- `Set task "Deployment checklist" status to done`
+- `Set task "Deployment checklist" due date to tomorrow`
+- `Set Maya Rao's capacity to maximum`
+- `Set strengths for Maya Rao to Mentoring and troubleshooting`
+- `Set growth focus for Maya Rao to Ownership`
+- `Schedule a one-to-one with Maya Rao tomorrow at 10:30 AM`
+- `Plan activity "Team lunch" for Maya Rao on tomorrow, type Team bonding`
+- `Append a note for Maya Rao: Lead the next handover`
+- `Append a note for activity "Team lunch": Bring snacks`
+- `Show tasks due tomorrow`, `Show Maya Rao's profile`, or `Who is off today`
+- `Open calendar`, `Export backup`, or `Import backup`
+- `Delete member Maya Rao` (requires confirmation)
 
-Commands can create, edit, or delete members, assignments, and activities; set/remove specific leave dates; update capacity, strengths, growth focus, notes, and check-in dates/times; navigate views; show profiles or due tasks; and start backup export/import. Import still requires selecting a file and accepting the existing replacement confirmation. Ambiguous requests should prompt a clarification. Deletions receive a separate confirmation; other explicit commands apply directly. An **Undo this change** button restores the preceding snapshot for up to ten minutes, provided no newer edits would be overwritten. Confirmations/undo expire on server restart, while saved records remain on the Docker volume.
+Dates support YYYY-MM-DD, named months (for example `October 28 2026`), today, tomorrow, and weekdays, using the browser's local date. An explicit leave range includes both endpoints; two listed dates mark only those dates. Numeric slash dates are rejected as ambiguous. Dates without a year use the next occurrence; include the year when recording past leave. Times accept `10:30 AM` or `14:30`. Use full member names and quoted task/activity titles. A unique first name is accepted; duplicate names need the role in parentheses or exact record ID. Duplicate task titles can be qualified with `for Maya Rao`. If details are missing or ambiguous, no changes are made: resend the complete command with the requested details. Commands do not infer references such as “him” from earlier messages.
 
-All changes are validated and committed atomically with revision checks. Creation dates and unknown existing record fields are preserved. The assistant cannot execute shell commands, fetch arbitrary URLs, or directly access files. There is a shared limit of 20 AI requests per minute, one active model call at a time, and a 45-second provider timeout. Server credentials never reach the browser. Commands and relevant team/task/calendar context are sent to OpenAI with Responses storage disabled; member and activity `notes` fields and unknown record fields are omitted. Explicit note-append commands preserve existing notes on the server. Chat history is kept only in the current browser page until reload.
+Commands create, update, and delete members, tasks, and activities; set/remove leave; edit capacity, strengths, growth focus, notes, and check-ins; and open workspace views. Task updates support title, status, priority, due date, work date, owner, blocker, and outcome. Activity updates support title, type, owner, date, status, and notes. `Assign` updates an existing unique task title or creates a new task; `Add task` explicitly creates one. Notes can be appended without replacing existing notes. Imports still require choosing a file and accepting the existing replacement confirmation.
 
-Keep this deployment behind your private network or authenticated proxy: everyone who can access the workspace can also use its configured assistant. AI interpretation depends on the model; review results and use Undo when needed. To validate a new key, ask a read-only question such as “How many team members are there?” before issuing changes.
+Deletions receive a separate confirmation; other explicit commands apply directly. **Undo this change** restores the preceding snapshot for up to ten minutes if no newer edits would be overwritten. Confirmations and Undo expire on server restart; saved records remain in the Docker volume. Commands are validated and saved atomically with revision checks. Creation metadata and unknown existing fields are preserved. Built-in mode sends no requests to an AI provider, even if an API key happens to be present. Chat history stays only in the current page until reload. The assistant cannot execute shell commands, fetch arbitrary URLs, or directly access files. The shared limit is 120 built-in commands per minute.
+
+### Optional external AI mode
+
+For more flexible language and general team questions, explicitly set `DERQ_ASSISTANT_MODE=ai` and provide `DERQ_AI_API_KEY` securely in the server environment (or the existing ignored Compose `.env`, preserving other settings), then restart/rebuild. An OpenAI API key with API billing is required only for this optional mode. `DERQ_AI_MODEL` defaults to `gpt-4.1-mini`. Keep `DERQ_ASSISTANT_MODE=local` for key-free commands; this is the default.
+
+External mode uses OpenAI's structured Responses API, with storage disabled. Commands and relevant workspace context go to OpenAI; member/activity notes and unknown fields are omitted from context. Explicit note commands are still sent as part of your message. The panel shows the active mode and privacy information. There is a shared limit of 20 AI commands per minute, one active call at a time, and a 45-second provider timeout. Never commit credentials or enter them in chat. Validate a new key with a read-only member-count question before issuing changes. Everyone who can access the shared workspace can use its assistant.
 
 ## Clone and deploy locally
 
