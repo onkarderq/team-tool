@@ -1,6 +1,14 @@
-# Teamspace
+# Derq Team Command Center
 
-A team leader's workspace for daily assignments, strengths and coaching focus, capacity, one-to-one notes, and team bonding activities. All records are stored on the server, and all browsers using that server share one workspace.
+Derq’s team leadership workspace for daily assignments, strengths and coaching focus, capacity, one-to-one notes, and team bonding activities. All records are stored on the server, and all browsers using that server share one workspace.
+
+## Derq leadership dashboard
+
+The blue command center includes clickable member cards with active assignments, strengths, growth notes, and the four most recent assignments sorted by work date. The top-right clock shows the browser’s local time and timezone. Delivery and workload visuals use your actual records; no demo members or tasks are added.
+
+Use the leadership action queue to review blocked, overdue, and high-priority work. Check-ins scheduled for today or earlier appear in the coaching queue; update the next date after each conversation. Add success criteria to assignments to clarify the intended outcome. Workload bars compare active task counts and should be discussed alongside each member’s stated capacity.
+
+Existing JSON backups and Docker-volume records remain compatible. This update requires no migration and preserves extra record fields when editing. Rebuild with `docker compose up -d --build` to load the new interface while retaining the existing named volume. Do not delete or recreate the volume. Export a backup before updating a live deployment.
 
 ## Clone and deploy locally
 

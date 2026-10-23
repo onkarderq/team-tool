@@ -13,10 +13,10 @@ test('serves assets, persists records across restart, rejects invalid and stale 
  const url='http://127.0.0.1:3197';
  try{
  await start();
- for(const [asset,content] of [['/','Teamspace'],['/app.js','/api/state'],['/ids.js','getRandomValues'],['/styles.css',':root']]){const res=await fetch(url+asset);assert.equal(res.status,200);assert.ok((await res.text()).includes(content));}
+ for(const [asset,content] of [['/','Derq'],['/app.js','/api/state'],['/ids.js','getRandomValues'],['/styles.css',':root']]){const res=await fetch(url+asset);assert.equal(res.status,200);assert.ok((await res.text()).includes(content));}
  assert.equal((await fetch(url+'/missing')).status,404);
  const initial=await fetch(url+'/api/state');const etag=initial.headers.get('etag');assert.deepEqual(await initial.json(),{people:[],tasks:[],activities:[]});
- const data={people:[{id:'p1',name:'Alex'}],tasks:[{id:'t1',title:'Plan',person:'p1'}],activities:[{id:'a1',title:'Coffee'}]};
+ const data={people:[{id:'p1',name:'Alex',strengths:'Systems thinking',notes:'Existing volume notes',customField:'Keep this legacy field'}],tasks:[{id:'t1',title:'Plan',person:'p1'}],activities:[{id:'a1',title:'Coffee'}]};
  const put=(body,tag=etag)=>fetch(url+'/api/state',{method:'PUT',headers:{'Content-Type':'application/json','If-Match':tag},body:JSON.stringify(body)});
  assert.equal((await put({bad:true})).status,400);
  assert.equal((await put(data)).status,200);
