@@ -38,13 +38,14 @@
   document.querySelectorAll('[data-inline][data-dirty="true"]').forEach(control=>commitInline(control));
   DerqNotepad.flush();
   await saveQueue;
+  if(window.DerqSync){await DerqSync.flush();if(DerqSync.info().pending)throw Error('Reconnect and reconcile your offline edits before using AI commands.');}
   if(saveFailed)throw Error('Your workspace has unsaved changes. Export your edits and reload before using the assistant.');
  }
  function applyResponse(data,etag,version){
   const draft=DerqNotepad.isDirty()||document.querySelector('[data-inline][data-dirty="true"]')||document.querySelector('#editor').open||document.querySelector('#leave-editor').open;
   if(saveVersion!==version||saveFailed||draft){saveFailed=true;badge('● Unsaved changes');notice('The assistant updated the server while you were editing. Export your local edits, then reload to see the saved workspace.');return false;}
   if(!valid(data.state))throw Error('The assistant returned invalid workspace data. Reload to check the saved state.');
-  state=data.state;revision=etag;render();badge('● Saved to server');notice('');return true;
+  state=data.state;revision=etag;if(window.DerqSync)DerqSync.accept(state,etag);render();badge('● Saved to server');notice('');return true;
  }
  function applyUI(actions){
   for(const action of actions||[]){

@@ -1,12 +1,13 @@
 const {randomUUID}=require('node:crypto');
 const {valid,isDay,isTime}=require('./state');
+const Analytics=require('./analytics');
 class AssistantError extends Error{constructor(message,status=400){super(message);this.status=status;}}
 const fields={
  member:['name','role','strengths','focus','capacity','checkin','checkinTime','notes'],
- task:['title','person','date','due','priority','status','blocker','outcome'],
+ task:['title','person','date','due','priority','status','blocker','outcome','dependsOn','completedDate'],
  activity:['title','type','person','date','status','notes']
 };
-const pages=['overview','people','tasks','activities','calendar','guide'];
+const pages=['overview','people','tasks','activities','calendar','guide','activity','presentation','impact'];
 const kinds=['create_member','update_member','delete_member','create_task','update_task','delete_task','create_activity','update_activity','delete_activity','set_leave','remove_leave','navigate','view_member','view_due','export_backup','import_backup','append_member_note','append_activity_note'];
 function fail(message){throw new AssistantError(message);}
 function applyPlan(original,plan,today){
@@ -53,11 +54,12 @@ function applyPlan(original,plan,today){
      for(const group of ['tasks','activities'])state[group].forEach(record=>{if(record.person===item.id)record.person='';});
      (state.leaves||[]).forEach(leave=>{if(leave.person===item.id&&!leave.name)leave.name=item.name;});
     }
+    if(entity==='task')for(const task of state.tasks)if(Analytics.dependencies(task).includes(item.id))task.dependsOn=JSON.stringify(Analytics.dependencies(task).filter(id=>id!==item.id));
     state[collection]=state[collection].filter(record=>record.id!==item.id);summaries.push(`Deleted ${entity}: ${item.name||item.title}.${entity==='member'?' Their tasks and activities become unassigned; leave history is retained.':''}`);continue;
    }
    if(patch.person)patch.person=member(patch.person).id;
    if(patch.capacity==='Maximum')patch.capacity='At capacity';
-   for(const key of ['date','due','checkin'])if(patch[key]&&!isDay(patch[key]))fail('Dates must be valid YYYY-MM-DD values.');
+   for(const key of ['date','due','checkin','completedDate'])if(patch[key]&&!isDay(patch[key]))fail('Dates must be valid YYYY-MM-DD values.');
    if(patch.checkinTime&&!isTime(patch.checkinTime))fail('One-to-one time must use HH:MM in your local timezone.');
    for(const key of ['name','title'])if(Object.hasOwn(patch,key)&&!patch[key])fail('Names and titles cannot be empty.');
    if(patch.name&&patch.name.length>200||patch.title&&patch.title.length>200)fail('Names and titles must be under 200 characters.');
@@ -72,12 +74,15 @@ function applyPlan(original,plan,today){
     const defaults={member:{role:'',strengths:'',focus:'',capacity:'Balanced',checkin:'',checkinTime:'',notes:''},task:{person:'',date:today,due:'',priority:'Medium',status:'To do',blocker:'',outcome:''},activity:{type:'Team improvement',person:'',date:'',status:'Planned',notes:''}}[entity];
     const item={...defaults,...patch,id:randomUUID(),...(entity==='task'?{createdDate:today}:{})};
     if(entity==='task'&&!isDay(item.date))fail('A task needs a work date.');
+    if(entity==='task'&&patch.completedDate&&(item.status!=='Done'||patch.completedDate>today))fail('Use a past or current completion date on a completed task.');
+    if(entity==='task')Analytics.stampCompletion(null,item,today);
     state[collection].push(item);if(action.id)aliases.set(action.id,item.id);
     summaries.push(`Added ${entity}: ${item.name||item.title}${entity==='member'&&item.role?' — '+item.role:''}.`);
    }else{
     const item=find(collection,action.id);
     if(entity==='task'&&Object.hasOwn(patch,'date')&&!isDay(patch.date))fail('A task needs a work date.');
-    Object.assign(item,patch);summaries.push(`Updated ${entity}: ${item.name||item.title}.`);
+    if(entity==='task'&&patch.completedDate&&((patch.status||item.status)!=='Done'||patch.completedDate>today))fail('Use a past or current completion date on a completed task.');
+    const previous={...item};Object.assign(item,patch);if(entity==='task')Analytics.stampCompletion(previous,item,today);summaries.push(`Updated ${entity}: ${item.name||item.title}.`);
    }
    ui.push({kind:'navigate',page:{member:'people',task:'tasks',activity:'activities'}[entity]});continue;
   }
@@ -87,6 +92,7 @@ function applyPlan(original,plan,today){
   if(action.kind==='view_due'){if(action.dates.length!==1||!isDay(action.dates[0]))fail('Choose one valid due date.');ui.push({kind:'view_due',date:action.dates[0]});}
   if(['export_backup','import_backup'].includes(action.kind))ui.push({kind:action.kind});
  }
+ if(summaries.length)Analytics.observeCapacity(state,today,randomUUID);
  if(Buffer.byteLength(JSON.stringify(state),'utf8')>5000000)throw new AssistantError('This change would exceed the 5 MB workspace limit. Nothing was saved.',413);
  if(!valid(state))fail('The assistant plan would create invalid workspace data. Nothing was saved.');
  return {state,changed:JSON.stringify(state)!==JSON.stringify(original),destructive,summaries,ui,message:summaries.length?summaries.join('\n'):plan.message.slice(0,8000)};

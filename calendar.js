@@ -20,6 +20,7 @@ function openLeaveDate(date){
  const options=[...state.people,...existing.filter(leave=>!state.people.some(p=>p.id===leave.person)).map(leave=>({id:leave.person,name:leaveName(leave)}))];
  document.querySelector('#leave-title').textContent='Leave · '+dueDateLabel(date);
  document.querySelector('#leave-options').innerHTML=options.length?`<p class="dialog-help">Select everyone who will be on leave. Uncheck a name to remove their leave for this date.</p><div class="leave-options">${options.map(p=>`<label class="leave-option"><input type="checkbox" name="members" value="${esc(p.id)}" ${existing.some(l=>l.person===p.id)?'checked':''}><span class="avatar">${esc(initials(p.name))}</span><span><strong>${esc(p.name)}</strong><small>${esc(p.role||'Team member')}</small></span></label>`).join('')}</div>`:empty('Add your team first','Create team members in Team & growth, then return here to record leave.');
+ if(typeof DerqLeadership!=='undefined')DerqLeadership.refreshLeavePreview();
  document.querySelector('#leave-editor').showModal();
 }
 function setLeaveMembers(date,ids){

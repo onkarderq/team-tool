@@ -1,0 +1,32 @@
+const {test}=require('node:test');const assert=require('node:assert/strict');const {create}=require('../sync');const {valid}=require('../state');const R=require('../reconcile');
+const initial=()=>({people:[{id:'p',name:'Alex',role:'Engineer',strengths:'Original'}],tasks:[],activities:[],notepad:'Original'});
+function fixture(cached){let remote=initial(),revision=1,available=true,saved=cached,puts=0,adopted;const store={read:async()=>R.copy(saved),write:async value=>{saved=R.copy(value);}};const engine=create({store,fetchRemote:async()=>{if(!available)throw Error('Offline');return {state:R.copy(remote),etag:String(revision)};},putRemote:async(state,etag)=>{assert.equal(etag,String(revision));puts++;remote=R.copy(state);return {etag:String(++revision)};},validate:valid,online:()=>available,onAdopt:state=>adopted=state});return {engine,store,get remote(){return remote;},set remote(state){remote=state;revision++;},get saved(){return saved;},get puts(){return puts;},get adopted(){return adopted;},offline:()=>available=false,online:()=>available=true};}
+test('offline edits persist before reconnect and independent server changes merge',async()=>{
+ const f=fixture();await f.engine.load();f.offline();const local=R.copy(f.remote);local.people[0].strengths='Offline';f.engine.stage(local);await f.engine.flush();await f.engine.persisted();assert.equal(f.saved.pending,true);assert.equal(f.saved.local.people[0].strengths,'Offline');assert.equal(f.puts,0);
+ const remote=R.copy(f.remote);remote.people[0].role='Remote lead';f.remote=remote;f.online();await f.engine.flush();assert.equal(f.remote.people[0].strengths,'Offline');assert.equal(f.remote.people[0].role,'Remote lead');assert.equal(f.engine.info().pending,false);assert.equal(f.saved.pending,false);
+});
+test('an offline reload restores pending records and syncs idempotently after reconnection',async()=>{
+ const base=initial(),local=R.copy(base);local.notepad='Saved offline';const f=fixture({base,local,etag:'1',pending:true,updatedAt:1});f.offline();const loaded=await f.engine.load();assert.equal(loaded.state.notepad,'Saved offline');f.online();await f.engine.flush();assert.equal(f.remote.notepad,'Saved offline');await f.engine.flush();assert.equal(f.puts,1);
+});
+test('conflicts do not write until all field choices are supplied',async()=>{
+ const f=fixture();await f.engine.load();const local=R.copy(f.remote);local.people[0].strengths='Local';f.engine.stage(local);const remote=R.copy(f.remote);remote.people[0].strengths='Remote';f.remote=remote;await f.engine.flush();assert.equal(f.engine.info().status,'conflict');assert.equal(f.puts,0);const conflict=f.engine.info().conflicts[0];await f.engine.flush({[conflict.id]:'local'});assert.equal(f.remote.people[0].strengths,'Local');assert.equal(f.engine.info().pending,false);
+});
+test('choices are invalidated if the server changes during review',async()=>{
+ const f=fixture();await f.engine.load();const local=R.copy(f.remote);local.notepad='Local';f.engine.stage(local);f.remote={...f.remote,notepad:'Server'};await f.engine.flush();const id=f.engine.info().conflicts[0].id;f.remote={...f.remote,notepad:'Newer server'};await f.engine.flush({[id]:'local'});assert.equal(f.puts,0);assert.equal(f.engine.info().status,'conflict');assert.equal(f.remote.notepad,'Newer server');
+});
+test('a new offline installation without a cached workspace does not enable editing',async()=>{const f=fixture();f.offline();await assert.rejects(()=>f.engine.load(),/Connect once/);});
+test('local edits made during a save are retained and sent in the following pass',async()=>{
+ let remote=initial(),release,entered;const start=new Promise(r=>entered=r),gate=new Promise(r=>release=r);let calls=0;const store={read:async()=>null,write:async()=>{}};const engine=create({store,fetchRemote:async()=>({state:R.copy(remote),etag:'revision'}),putRemote:async state=>{calls++;if(calls===1){entered();await gate;}remote=R.copy(state);return {etag:'revision'};},validate:valid});
+ await engine.load();engine.stage({...remote,notepad:'First'});const pending=engine.flush();await start;engine.stage({...engine.info().state,notepad:'Second'});release();await pending;assert.equal(remote.notepad,'Second');assert.equal(engine.info().pending,false);assert.equal(calls,2);
+});
+test('unavailable device storage is reported while online saving can continue',async()=>{
+ let remote=initial();const engine=create({store:{read:async()=>null,write:async()=>{throw Error('quota');}},fetchRemote:async()=>({state:R.copy(remote),etag:'r'}),putRemote:async state=>{remote=state;return {etag:'next'};},validate:valid});await engine.load();engine.stage({...remote,notepad:'Keep this'});await engine.flush();assert.equal(remote.notepad,'Keep this');assert.match(engine.info().storageError,/storage is unavailable/);
+});
+test('a revision conflict between fetch and save is retried against the latest server state',async()=>{
+ let remote=initial(),revision=1,calls=0;const engine=create({store:{read:async()=>null,write:async()=>{}},fetchRemote:async()=>({state:R.copy(remote),etag:String(revision)}),putRemote:async(state,etag)=>{calls++;if(calls===1){remote.people[0].role='Concurrent lead';revision++;throw Object.assign(Error('changed'),{status:409,network:false});}assert.equal(etag,String(revision));remote=R.copy(state);return {etag:String(++revision)};},validate:valid});
+ await engine.load();engine.stage({...remote,notepad:'Local note'});await engine.flush();assert.equal(calls,2);assert.equal(remote.notepad,'Local note');assert.equal(remote.people[0].role,'Concurrent lead');assert.equal(engine.info().pending,false);
+});
+test('an editor opened during a save defers adoption and retains the draft until the editor closes',async()=>{
+ let remote=initial(),allowed=true,release,entered,adoptions=0;const start=new Promise(r=>entered=r),gate=new Promise(r=>release=r);const engine=create({store:{read:async()=>null,write:async()=>{}},fetchRemote:async()=>({state:R.copy(remote),etag:'r'}),putRemote:async state=>{entered();await gate;remote=R.copy(state);return {etag:'r2'};},validate:valid,canAdopt:()=>allowed,onAdopt:()=>adoptions++});
+ await engine.load();engine.stage({...remote,notepad:'Local draft'});const pending=engine.flush();await start;allowed=false;release();await pending;assert.equal(adoptions,0);assert.equal(engine.info().pending,true);assert.match(engine.info().error,/close open editors/);allowed=true;await engine.flush();assert.equal(engine.info().pending,false);assert.equal(adoptions,1);assert.equal(remote.notepad,'Local draft');
+});

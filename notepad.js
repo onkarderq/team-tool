@@ -6,7 +6,8 @@
   if(!dirty)input.value=state.notepad||'';
   document.querySelector('#notepad-count').textContent=input.value.length.toLocaleString()+' / 100,000 characters';
   const saving=dirty||document.querySelector('.local-badge').textContent==='● Saving…';
-  status.textContent=!loaded?'Loading…':saveFailed?'Not saved — download a copy':saving?'Saving…':'Saved to workspace';
+  const sync=window.DerqSync&&DerqSync.info(),offline=sync?.status==='offline'&&!sync.storageError;
+  status.textContent=!loaded?'Loading…':offline?(dirty||sync.cachePending?'Saving on device…':'Saved on this device'):saveFailed?'Not saved — review sync or download':saving?'Saving…':'Saved to workspace';
   status.classList.toggle('notepad-unsaved',saveFailed);status.classList.toggle('notepad-saving',saving&&!saveFailed);
  }
  function flush(){

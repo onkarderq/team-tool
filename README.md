@@ -1,6 +1,6 @@
 # Derq Team Command Center
 
-Derq’s team leadership workspace for daily assignments, strengths and coaching focus, capacity, one-to-one notes, and team bonding activities. All records are stored on the server, and all browsers using that server share one workspace.
+Derq’s team leadership workspace for daily assignments, strengths and coaching focus, capacity, one-to-one notes, and team bonding activities. The server stores the shared workspace; each browser can also keep a saved copy and pending edits for offline use.
 
 ## Derq leadership dashboard
 
@@ -16,7 +16,7 @@ Click a capacity pill to cycle **Balanced → Maximum → Available → Balanced
 
 Type strengths, growth focus, or notes directly in the team table or profile. Changes save when you leave the field; **Ctrl/Cmd+Enter** saves immediately and **Esc** cancels the current text edit. Set check-in dates directly in place.
 
-Click task status to cycle **To do → In progress → Blocked → Done → To do**, click priority to cycle **Medium → High → Low**, or use the due-date picker directly. The server-save indicator confirms persistence; save conflicts retain your changes in memory for export instead of overwriting another session. The full Edit dialog is still available for other fields.
+Click task status to cycle **To do → In progress → Blocked → Done → To do**, click priority to cycle **Medium → High → Low**, or use the due-date picker directly. The server-save indicator confirms persistence; offline edits are saved on this device, and conflicts open a field-by-field reconciliation screen. The full Edit dialog is still available for other fields.
 
 ## Leave calendar and daily reminders
 
@@ -68,7 +68,39 @@ External mode uses OpenAI's structured Responses API, with storage disabled. Com
 
 Select the **notebook icon above the robot** for a plain-text notepad. Capture ideas, reminders, or anything that does not fit an assignment. Notes save automatically after a short typing pause, when you leave the field, or when you close the panel. **Save now** or **Ctrl/Cmd+Enter** saves immediately. The save status confirms persistence; **Download .txt** saves a plain-text copy, including unsaved text if the server is unavailable. Escape closes either floating panel.
 
-This is a shared workspace note, visible to everyone accessing this deployment. It supports up to 100,000 characters, preserves line breaks, and is included in JSON exports/imports and the existing Docker volume. Reload to see another session's edits. Conflicting saves preserve your local text for export instead of overwriting newer server records. Older workspaces and backups without a notepad remain compatible. Notepad contents are excluded from the optional external AI context.
+This is a shared workspace note, visible to everyone accessing this deployment. It supports up to 100,000 characters, preserves line breaks, and is included in JSON exports/imports and the existing Docker volume. Reload to see another session's edits. Conflicting saves preserve both versions for explicit reconciliation; the download button can also recover local text. Older workspaces and backups without a notepad remain compatible. Notepad contents are excluded from the optional external AI context.
+
+## Offline editing and reconciliation
+
+Connect once to load the workspace. The app saves a local copy and edit draft in IndexedDB (with browser-storage fallback). Members, tasks, dependencies, leave, time entries, availability observations, and notepad text can be edited offline. The header distinguishes saving, a saved offline copy, pending changes, and conflicts. The server remains the shared source after reconciliation; offline edits are not visible on other devices until they sync.
+
+On reconnection the app compares the original shared snapshot, this device's edits, and the latest server state. Independent records and fields merge automatically. Conflicting fields, deletion-versus-edit changes, inconsistent task relationships, and combined time entries above 24 hours require explicit choices. Select the save indicator to inspect **Offline & reconciliation**, compare original/local/server versions, retry, export a backup, or recover another saved device draft. Choices are rechecked against the latest server revision before saving. No server version is overwritten with a stale whole-workspace snapshot. A conflict can require a further review when choosing one version exposes another relationship conflict.
+
+**Offline reload requires HTTPS or localhost**, an initial successful visit, and a ready service-worker cache. The sync dialog shows readiness. On an ordinary HTTP LAN address, an already-open page supports offline editing, but browsers do not permit offline reload through a service worker. Use the same browser profile and address for recovery. AI commands still require a connection to the app server and wait for pending edits to sync. Clearing site data, private-browsing expiry, storage quotas, or browser eviction can remove saved device copies: export important drafts. A storage failure is shown explicitly; it does not falsely report durable offline saving.
+
+Each document has its own draft writer ID so tabs cannot silently replace one another's cached edits. Reopening a pending draft copies it before retiring an unchanged source. Pending drafts from other tabs can be recovered from the sync dialog. Open forms and uncommitted text edits pause adoption of remote changes. The server checks the revision again on every save. This deployment still uses one application server against the existing JSON data file and Docker volume.
+
+Device copies include shared workspace notes and remain readable by other people using the same browser profile. **Clear saved device copies** removes synced browser copies when there are no pending drafts; it does not delete server records or pending drafts. With fallback browser storage, it clears this tab’s copy; browser site settings can clear all app storage. Other open tabs can save new copies. Browser backups are a separate export, not a substitute for server backups. Imports replace local records and reconcile concurrent server edits before syncing.
+
+## Team Activity: 3D globe and dependency map
+
+**Team Activity** in the sidebar opens a locally rendered, dark pixel-style 3D globe. Drag to rotate, use zoom/reset controls, or enable the optional orbit motion. Named member circles connect to the globe; select a circle or roster entry to inspect its completed tasks from the last seven calendar days, including today. Green marks all members tied for the most completions; orange marks all tied for the fewest. When everyone ties, all circles stay blue. Large teams page through the scene while the roster lists every member. The scene and its controls work with cached local data offline, without external graphics services.
+
+Switch to **Dependency map** to inspect prerequisite arrows and the people owning each task. Select a task to highlight its prerequisite and downstream impact. In the task editor, use **Depends on** to select prerequisite tasks; cycles, self-links, and missing prerequisites are rejected. Removing a task removes its incoming references while retaining recorded time history. A dependency is a planning relationship; it does not prevent a leader from manually changing task status.
+
+## Completion history, time, and presentation
+
+Marking a task **Done** records its local completion date and credited member. Reopening it clears that completion. Reassignment after completion retains the original completion credit. The **Completion date** field lets you backfill older completed tasks or correct a date; no past completion date is inferred from assignment dates. Older completed tasks without dates are counted separately and excluded from dated graphs and rankings.
+
+Selecting any member card shows a **15-day line chart** of daily dated completions. Select a point for that day's task list. **Log time** on a task records a dated member, whole minutes, and an optional note. Actual logged time feeds the review; the app does not estimate hours from status. Entries can be removed, and one person's daily total cannot exceed 1,440 minutes. Time history includes task/member name snapshots so deletions do not erase the record.
+
+The app records declared capacity on the current day when loaded/edited and at a local-day change while open; capacity changes update that day's observation. It does not reconstruct unobserved past days. The availability metric shows days last observed as **Available** divided by observed non-leave days. It is a capacity observation, not attendance or continuous time monitoring. Recorded leave provides separate context.
+
+**Presentation** shows every current member with a 15-day line chart, delivered-task preview and expandable history, logged time, available/observed days, leave, open/blocked work, and completion against recorded deadlines. Highlights show most/fewest completed tasks, most logged time, and most Available days, including ties. Fullscreen hides navigation and floating tools; **Exit presentation** or fullscreen Escape restores the interface. **Print / PDF** produces a printable review. Volume, time, and availability remain separate measures; missing history is labeled.
+
+## Leave Impact
+
+**Leave Impact** analyzes a selected calendar date using recorded leave. It flags open assignments due by that date or assigned on/before it, and shows downstream open tasks. Future assignments with no earlier deadline are excluded. Coverage suggestions exclude members on leave that day and members currently at maximum capacity, then sort by exact shared strength labels and current open-task counts. These are transparent heuristics, not estimates of expertise or historical capacity. Reassigning requires a leader's confirmation. The calendar leave editor also previews the impact of a proposed selection before it is saved.
 
 ## Clone and deploy locally
 
@@ -143,7 +175,7 @@ docker run -d --name teamspace --restart unless-stopped \
 
 For hosting platforms, attach persistent storage at `/app/data`, set the internal port to **3000**, and run one application instance against that storage. `PORT` and `DATA_DIR` can override these defaults. Docker creates an anonymous volume if you omit the named mount, but it will not automatically be reused by a replacement container: use the named volume or Compose configuration above.
 
-This app has **no login or access control**. The local deployment binds only to your computer. To give your team remote access, put it behind an authenticated HTTPS proxy or private network. Everyone with access can read and change all records. Refresh to see other sessions' changes; conflicting saves are rejected rather than silently overwriting newer data. This file-based deployment supports one server instance, not multiple replicas.
+This app has **no login or access control**. The local deployment binds only to your computer. To give your team remote access, put it behind an authenticated HTTPS proxy or private network. Everyone with access can read and change all records. Use the save indicator's reconnect/retry action or reload to fetch other sessions' changes. Pending edits are reconciled with the latest revision. This file-based deployment supports one server instance, not multiple replicas.
 
 ## Daily workflow
 

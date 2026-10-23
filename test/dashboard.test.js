@@ -6,7 +6,7 @@ function app(data){
  const elements=new Map();
  const element=selector=>{if(!elements.has(selector))elements.set(selector,{textContent:'',innerHTML:'',showModal(){this.open=true;}});return elements.get(selector);};
  const context=vm.createContext({document:{querySelector:element,querySelectorAll:()=>[],getElementById:element,addEventListener(){}},window:{addEventListener(){}},fetch:()=>new Promise(()=>{}),setInterval(){},Intl,Date,crypto:require('node:crypto').webcrypto});
- for(const file of ['../state.js','../calendar.js','../ids.js','../app.js'])vm.runInContext(readFileSync(require.resolve(file),'utf8'),context);
+ for(const file of ['../analytics.js','../state.js','../calendar.js','../ids.js','../app.js'])vm.runInContext(readFileSync(require.resolve(file),'utf8'),context);
  context.fixture=data;vm.runInContext('state=fixture',context);
  return {run:code=>vm.runInContext(code,context),element,setFetch:fetch=>{context.fetch=fetch;}};
 }
