@@ -2,7 +2,7 @@ services:
   teamspace:
     build: .
     ports:
-      - "127.0.0.1:3000:3000"
+      - "${TEAMSPACE_BIND_IP:-127.0.0.1}:${TEAMSPACE_HOST_PORT:-3000}:3000"
     restart: unless-stopped
     volumes:
       - teamspace_data:/app/data
