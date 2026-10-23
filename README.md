@@ -18,6 +18,16 @@ Type strengths, growth focus, or notes directly in the team table or profile. Ch
 
 Click task status to cycle **To do → In progress → Blocked → Done → To do**, click priority to cycle **Medium → High → Low**, or use the due-date picker directly. The server-save indicator confirms persistence; save conflicts retain your changes in memory for export instead of overwriting another session. The full Edit dialog is still available for other fields.
 
+## Leave calendar and daily reminders
+
+**Calendar** in the sidebar shows a full month, with previous/next navigation and a return to the current month. Select a date, check the members on leave, and save. Their names remain on that date after reloads and server restarts. Reopen the date and uncheck names to remove leave. Leave records are included in JSON exports; backups from earlier versions without leave records remain supported.
+
+Set each member’s next one-to-one **date and local time** in Team & growth or their profile. Today’s names and times appear beside the clock. Select the reminder strip to see the list or manage scheduling. A “Soon” label appears in the 15 minutes before a scheduled meeting. These are in-app reminders while the page is open, using the browser’s local timezone.
+
+The rounded task indicator opens **all open tasks due today**. Its color counts tasks due today that were **not created today**: green for zero, orange for one or two, red for three or more. Tasks created and due today appear in the list but do not raise the color. New tasks record their creation date independently of work date; changing a work date does not reset creation. Older records lack that metadata, so their existing work/assignment date is used as the fallback. Completed tasks are excluded. The header updates as tasks and check-ins change and as the local day changes.
+
+The existing Docker data file is read without a forced migration. Leave records are added only when saved, preserving existing members, assignments, activities, and extra record fields.
+
 ## Clone and deploy locally
 
 Install Git and Docker Desktop (Windows/macOS) or Docker Engine with the Compose plugin (Linux). Start Docker, then run:

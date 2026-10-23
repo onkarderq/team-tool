@@ -2,11 +2,11 @@ const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
-const files = {'/':'index.html','/app.js':'app.js','/ids.js':'ids.js','/styles.css':'styles.css','/derq-logo.png':'derq-logo.png'};
+const files = {'/':'index.html','/app.js':'app.js','/ids.js':'ids.js','/styles.css':'styles.css','/derq-logo.png':'derq-logo.png','/state.js':'state.js','/calendar.js':'calendar.js'};
 const directory = process.env.DATA_DIR || path.join(__dirname, 'data');
 fs.mkdirSync(directory, {recursive:true});
 const dataFile = path.join(directory, 'teamspace.json');
-const valid = s => s && ['people','tasks','activities'].every(k => Array.isArray(s[k]) && s[k].every(x => x && typeof x.id === 'string' && Object.values(x).every(v => typeof v === 'string'))) && s.people.every(x => x.name) && s.tasks.every(x => x.title) && s.activities.every(x => x.title);
+const {valid}=require('./state');
 function persist(data) {
  const temporary = dataFile + '.tmp';
  const fd = fs.openSync(temporary, 'w', 0o600);

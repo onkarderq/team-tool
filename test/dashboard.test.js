@@ -5,8 +5,8 @@ const vm=require('node:vm');
 function app(data){
  const elements=new Map();
  const element=selector=>{if(!elements.has(selector))elements.set(selector,{textContent:'',innerHTML:'',showModal(){this.open=true;}});return elements.get(selector);};
- const context=vm.createContext({document:{querySelector:element,querySelectorAll:()=>[],getElementById:element,addEventListener(){}},window:{addEventListener(){}},fetch:()=>new Promise(()=>{}),setInterval(){},Intl,Date});
- vm.runInContext(readFileSync(require.resolve('../app.js'),'utf8'),context);
+ const context=vm.createContext({document:{querySelector:element,querySelectorAll:()=>[],getElementById:element,addEventListener(){}},window:{addEventListener(){}},fetch:()=>new Promise(()=>{}),setInterval(){},Intl,Date,crypto:require('node:crypto').webcrypto});
+ for(const file of ['../state.js','../calendar.js','../ids.js','../app.js'])vm.runInContext(readFileSync(require.resolve(file),'utf8'),context);
  context.fixture=data;vm.runInContext('state=fixture',context);
  return {run:code=>vm.runInContext(code,context),element,setFetch:fetch=>{context.fetch=fetch;}};
 }
@@ -152,4 +152,59 @@ test('all seven planning dates are accessible buttons, including empty dates',()
  assert.ok(html.includes('View 0 open tasks due'));
  view.run(`openDueDate('${dates[0]}')`);
  assert.ok(view.element('#due-content').innerHTML.includes('No open tasks due on this date'));
+});
+
+test('leave calendar aligns complete weeks and handles leap years and year boundaries',()=>{
+ const view=app({people:[],tasks:[],activities:[]});
+ const october=JSON.parse(view.run('JSON.stringify(monthDates(2026,9))'));
+ assert.equal(october.length,42);assert.equal(october[0].key,'2026-09-28');assert.equal(october[3].key,'2026-10-01');
+ assert.equal(october.filter(day=>day.inMonth).length,31);
+ assert.equal(view.run('monthDates(2024,1).filter(day=>day.inMonth).length'),29);
+ assert.ok(view.run("monthDates(2026,11).some(day=>day.key==='2027-01-01')"));
+});
+test('leave selection persists multiple members without touching other dates or legacy fields',()=>{
+ const fixture={people:[{id:'p1',name:'Alex'},{id:'p2',name:'Sam'}],tasks:[],activities:[],leaves:[{id:'old',date:'2026-10-24',person:'p1',name:'Alex',extra:'Keep'},{id:'other',date:'2026-11-01',person:'p2',name:'Sam'}]};
+ const view=app(fixture);view.run('loaded=true');
+ assert.equal(view.run("setLeaveMembers('2026-10-24',['p1','p2','p2'])"),true);
+ assert.equal(fixture.leaves.length,3);
+ assert.equal(fixture.leaves.find(leave=>leave.id==='old').extra,'Keep');
+ assert.equal(fixture.leaves.find(leave=>leave.id==='other').date,'2026-11-01');
+ assert.equal(view.run("setLeaveMembers('2026-10-24',['p1','p2'])"),false);
+ assert.equal(view.run("setLeaveMembers('2026-10-24',['unknown'])"),false);
+ assert.equal(view.run("setLeaveMembers('2026-02-30',['p1'])"),false);
+ assert.equal(view.run("setLeaveMembers('2026-10-24',[])"),true);
+ assert.equal(fixture.leaves.length,1);assert.equal(fixture.leaves[0].id,'other');
+});
+test('daily alert thresholds ignore same-day creation and completed or other-day tasks',()=>{
+ const fixture={people:[],activities:[],tasks:[]},view=app(fixture),day='2026-10-24';
+ const summary=()=>JSON.parse(view.run(`JSON.stringify(dueTodaySummary('${day}'))`));
+ assert.equal(summary().level,'green');
+ fixture.tasks=Array.from({length:4},(_,i)=>({id:'new'+i,title:'New',due:day,date:'2026-10-01',createdDate:day,status:'To do'}));
+ assert.equal(summary().tasks.length,4);assert.equal(summary().level,'green');
+ fixture.tasks.push({id:'old1',title:'Old',due:day,date:day,createdDate:'2026-10-23',status:'Blocked'});
+ assert.equal(summary().level,'orange');assert.equal(summary().attention,1);
+ fixture.tasks.push({id:'old2',title:'Legacy',due:day,date:'2026-10-23',status:'To do'});
+ assert.equal(summary().level,'orange');assert.equal(summary().attention,2);
+ fixture.tasks.push({id:'old3',title:'Unknown creation',due:day,status:'To do'});
+ assert.equal(summary().level,'red');
+ fixture.tasks.push({id:'done',title:'Done',due:day,createdDate:'2026-10-01',status:'Done'},{id:'future',title:'Future',due:'2026-10-25',createdDate:'2026-10-01',status:'To do'});
+ assert.equal(summary().attention,3);assert.equal(summary().tasks.length,7);
+});
+test('one-to-one reminders show only today, ordered by time, and flag the next 15 minutes',()=>{
+ const view=app({people:[{id:'p1',name:'Late',checkin:'2026-10-24',checkinTime:'15:00'},{id:'p2',name:'Early',checkin:'2026-10-24',checkinTime:'09:30'},{id:'p3',name:'Unscheduled time',checkin:'2026-10-24'},{id:'p4',name:'Tomorrow',checkin:'2026-10-25',checkinTime:'10:00'}],tasks:[],activities:[]});
+ assert.equal(view.run("todaysMeetings('2026-10-24').map(p=>p.name).join(',')"),'Early,Late,Unscheduled time');
+ assert.equal(view.run("meetingTiming({checkinTime:'09:30'},new Date(2026,9,24,9,15))"),'Starting soon');
+ assert.equal(view.run("meetingTiming({checkinTime:'09:30'},new Date(2026,9,24,9,30))"),'Starting now');
+ assert.equal(view.run("meetingTiming({checkinTime:'09:30'},new Date(2026,9,24,10,0))"),'Earlier today');
+ view.run('loaded=true');
+ assert.equal(view.run("applyInlineEdit('people','p1','checkinTime','25:00')"),false);
+ assert.equal(view.run("applyInlineEdit('people','p1','checkinTime','10:15')"),true);
+});
+test('new tasks capture creation independently of assignment dates and quick edits preserve it',()=>{
+ const view=app({people:[],tasks:[],activities:[]});
+ view.run("loaded=true;state.tasks.push(newRecord('tasks',{title:'Backdated work',date:'2020-01-01',due:today(),status:'To do'}))");
+ assert.equal(view.run('state.tasks[0].createdDate'),view.run('today()'));
+ assert.equal(view.run('dueTodaySummary().level'),'green');
+ view.run("applyInlineEdit('tasks',state.tasks[0].id,'status','In progress')");
+ assert.equal(view.run('state.tasks[0].createdDate'),view.run('today()'));
 });
