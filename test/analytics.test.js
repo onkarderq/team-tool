@@ -95,3 +95,13 @@ test('historical presentation excludes later leave and completions while labelin
  for(const count of [0,-1,367,1.5,NaN,'60'])assert.throws(()=>A.presentationReport(state,day,{count}),RangeError);
  assert.throws(()=>A.presentationReport(state,'2026-02-30'),RangeError);
 });
+
+test('period comparison uses adjacent equal windows and keeps the same filtered member cohort',()=>{
+ const state=initial();state.people[0].role='Engineer';state.people[1].role='Lead';state.tasks.push({id:'new',title:'Now',person:'p',status:'Done',completedDate:day},{id:'old',title:'Before',person:'p',status:'Done',completedDate:A.shift(day,-15)},{id:'earlier',title:'Outside prior range',person:'p',status:'Done',completedDate:A.shift(day,-30)},{id:'hidden',title:'Other member',person:'q',status:'Done',completedDate:A.shift(day,-16)});
+ state.leaves=[{person:'p',date:day},{person:'p',date:A.shift(day,-29)},{person:'q',date:A.shift(day,-16)}];const original=structuredClone(state);
+ const report=A.periodComparison(state,day,{count:15,role:'Engineer',focus:'completed'});assert.equal(report.from,A.shift(day,-14));assert.equal(report.previous.to,A.shift(day,-15));assert.equal(report.previous.from,A.shift(day,-29));assert.equal(report.total,1);assert.equal(report.previous.total,1);assert.equal(report.leave,1);assert.equal(report.previous.leave,1);assert.deepEqual(report.previous.rows.map(r=>r.person),['p']);assert.equal(report.rows[0].previous.completed,1);assert.equal(report.completionChange.change,0);assert.deepEqual(state,original);state.people[1].role='Engineer';const cohort=A.periodComparison(state,day,{count:15,focus:'completed'});assert.deepEqual(cohort.rows.map(r=>r.person),['p']);assert.equal(cohort.previous.total,1);
+});
+test('comparison never invents percentage growth when the baseline is zero and supports one-day windows',()=>{
+ const state=initial();state.tasks.push({id:'new',title:'Now',person:'p',status:'Done',completedDate:day});const report=A.periodComparison(state,day,{count:1,person:'p'});assert.equal(report.previous.from,A.shift(day,-1));assert.equal(report.previous.to,A.shift(day,-1));assert.equal(report.completionChange.change,1);assert.equal(report.completionChange.percent,null);
+ state.tasks.push({id:'old',title:'Before',person:'p',status:'Done',completedDate:A.shift(day,-1)},{id:'old2',title:'Before again',person:'p',status:'Done',completedDate:A.shift(day,-1)});const decline=A.periodComparison(state,day,{count:1,person:'p'});assert.equal(decline.completionChange.percent,-50);assert.equal(decline.completionChange.change,-1);
+});

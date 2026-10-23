@@ -30,7 +30,7 @@
    if(adopted&&(!value.pending||(TeamspaceReconcile.equal(value.base,adopted.base)&&TeamspaceReconcile.equal(value.local,adopted.local)))){await operation('deleteExact',{id:adopted.id,expected:adopted});adopted=null;}
   }
  };
- function canAdopt(){return loaded&&!document.querySelector('#editor').open&&!document.querySelector('#leave-editor').open&&!document.querySelector('[data-inline][data-dirty="true"]')&&!(window.DerqNotepad&&DerqNotepad.isDirty());}
+ function canAdopt(){return loaded&&!document.querySelector('#editor').open&&!document.querySelector('#leave-editor').open&&!document.querySelector('[data-dirty="true"]')&&!(window.DerqNotepad&&DerqNotepad.isDirty());}
  function transportError(message,network=true,status){return Object.assign(Error(message),{network,status});}
  async function fetchRemote(){
   let response;try{response=await fetch('/api/state',{cache:'no-store',signal:AbortSignal.timeout(8000)});}catch{throw transportError('The server is unreachable. Changes remain on this device and will be retried.');}
@@ -56,7 +56,7 @@
  const preview=value=>value===undefined?'(record or field deleted)':typeof value==='string'?value:JSON.stringify(value,null,2);
  async function show(){
   if(!loaded)return;
-  if(window.DerqNotepad)DerqNotepad.flush();document.querySelectorAll('[data-inline][data-dirty="true"]').forEach(commitInline);await engine.persisted();
+  if(window.DerqNotepad)DerqNotepad.flush();document.querySelectorAll('[data-inline][data-dirty="true"]').forEach(commitInline);if(window.DerqWorkspace)DerqWorkspace.flushEdits();await engine.persisted();
   const info=engine.info(),dialog=document.querySelector('#sync-dialog');
   document.querySelector('#sync-description').textContent=deviceCopyCleared?'The saved device copy was removed. Reconnect / retry to prepare a new offline copy.':info.storageError?'Device storage is unavailable. Your current edits are in memory; export a backup before closing.':info.pending?'Your draft is stored on this device. Independent edits merge automatically; conflicting fields need your choice.':'This device has a saved workspace copy. Offline edits sync after reconnection.';
   document.querySelector('#sync-capability').textContent=deviceCopyCleared?'Reconnect to save the workspace on this device again.':info.storageError?'Offline data storage is unavailable. Download a backup.':offlineReady&&!info.cachePending?'Offline reload is ready on this device.':window.isSecureContext?'Preparing offline reload. Keep this page open until the app cache is ready.':'Offline editing works in an open tab. Offline reload requires HTTPS or localhost.';

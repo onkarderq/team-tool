@@ -84,9 +84,19 @@ Device copies include shared workspace notes and remain readable by other people
 
 ## Team Activity: 3D globe and dependency map
 
-**Team Activity** in the sidebar opens a locally rendered, dark pixel-style 3D globe. Drag to rotate, use zoom/reset controls, or enable the optional orbit motion. Named member circles connect to the globe; select a circle or roster entry to inspect its completed tasks from the last seven calendar days, including today. Green marks all members tied for the most completions; orange marks all tied for the fewest. When everyone ties, all circles stay blue. Large teams page through the scene while the roster lists every member. The scene and its controls work with cached local data offline, without external graphics services.
+**Team Activity** opens an illuminated 3D constellation: a shaded sphere, 14,500 terrain/ocean particles, tilted orbital paths, atmospheric glow and curved member connections. It uses native WebGL with a Canvas fallback when GPU rendering is unavailable. Connections represent team membership, not geographic locations. Select a member node or roster entry to inspect actual dated completions from the last seven calendar days. Green marks all members tied for the most completions; orange marks those tied for the fewest. Everyone tied stays blue. Counts indicate volume, not effort or quality.
+
+Drag to turn the globe with inertia; scroll or pinch to zoom. Focus the scene and use arrow keys, `+`/`−`, Space (pause) and Home (reset). Small pause/reset icons replace the previous rotate/orbit button row. Member nodes remain legible and page through groups of eight, or four in compact scenes; the roster lists everyone. Motion pauses when the scene is offscreen or the document is hidden. The browser's reduced-motion setting disables automatic movement and interface animation. The scene, palette, drawers and analytics work with cached workspace data offline, without graphics libraries, CDNs or external services.
 
 Switch to **Dependency map** to inspect prerequisite arrows and the people owning each task. Select a task to highlight its prerequisite and downstream impact. In the task editor, use **Depends on** to select prerequisite tasks; cycles, self-links, and missing prerequisites are rejected. Removing a task removes its incoming references. A dependency is a planning relationship; it does not prevent a leader from manually changing task status.
+
+## Persistent details and workspace search
+
+Member profiles, task details, completed-task lists and due-date lists open in a modeless detail drawer. Keep it open while changing pages; wide screens make room beside the current view, and small screens use a full-width detail panel. Back returns to earlier details. Escape or Close dismisses it. New-record forms and Calendar leave selection retain their focused forms.
+
+Open a task from its title, an Edit action, a dependency or search. Change title, owner, work/due/completion dates, blockers and expected impact directly in the drawer; status and priority cycle in place. Changes use the existing validation, completion stamps, local draft storage and reconciliation. Uncommitted task text pauses remote adoption; invalid edits are flagged and require correction or an explicit discard before switching. **Edit dependencies & all fields** opens the full editor.
+
+Select **Search anything** or press `Ctrl/Cmd + K`. Search member names, roles, strengths, task titles/owners/status/due dates, activities and workspace actions. Prefix `@` for members, `#` for tasks or `>` for actions. Use arrows and Enter to select, or Escape to close. Actions navigate, create records, open AI/notepad or export a backup. Search is local and works offline. Finish an open create/edit or Calendar form before using search to switch contexts.
 
 ## Completion history and presentation
 
@@ -101,6 +111,10 @@ The app records declared capacity on the current day when loaded/edited and at a
 Charts, dated deliveries, leave totals, highlight counts and ranking colors all use the selected period and shown members. A one-day custom range is supported. Leave counts come only from that member's unique recorded Calendar dates within the range, excluding future dates; no records means zero. Cards preview the actual leave dates, and **View recorded leave dates** lets you open and correct Calendar entries. Available/observed days and undated completion counters are omitted from Presentation. Current open, blocked and overdue figures describe workload now, even when reviewing an earlier completion period. Task volume alone does not measure effort or quality.
 
 Fullscreen hides navigation and floating tools; **Exit presentation** or fullscreen Escape restores the interface. **Print / PDF** keeps the filtered review, with a summary of its dates and selected filters. Volume and leave are separate measures.
+
+**Compare with previous period** compares the selected range with the immediately preceding, equally sized range, using the same currently shown members. It shows daily completion curves, recorded completion and leave totals, on-time completion counts, and member changes. Dashed member-chart lines represent the prior period. A zero baseline is labeled instead of displaying infinite percentage growth. Current open/blocked/overdue workload is not represented as a historical measurement. Filtered comparisons are included in Print/PDF.
+
+Interface motion emphasizes navigation, the detail drawer, keyboard search and focus, with subtle hover depth. Reduced-motion preferences apply throughout.
 
 ## Leave Impact
 

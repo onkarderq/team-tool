@@ -1,0 +1,14 @@
+(function(root){
+ const pages=[['overview','Command center','Overview, priorities and your team'],['people','Team & growth','Members, coaching and strengths'],['tasks','Daily tasks','Assignments, status and deadlines'],['calendar','Calendar','Record or review team leave'],['activity','Team Activity','Explore the team constellation and dependencies'],['presentation','Presentation & comparison','Review delivery trends and compare periods'],['impact','Leave Impact','Review coverage and affected assignments'],['activities','Team connection','Learning, recognition and team activities']];
+ const normalize=value=>String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+ function search(state,query='',limit=16){
+  const text=query.trim(),scope=text[0]==='@'?'member':text[0]==='#'?'task':text[0]==='>'?'action':'',tokens=normalize(scope?text.slice(1):text).split(/\s+/).filter(Boolean);
+  const actions=[...pages.map(([id,label,subtitle])=>({kind:'page',id,label,subtitle,group:'Go to',icon:'↗'})),...['task','member','activity','leave'].map(id=>({kind:'create',id,label:'Add '+({task:'task',member:'team member',activity:'team activity',leave:'leave for today'}[id]),subtitle:'Create a new workspace record',group:'Actions',icon:'+'})),...['notepad','assistant','backup'].map(id=>({kind:'tool',id,label:{notepad:'Open notepad',assistant:'Open AI',backup:'Export workspace backup'}[id],subtitle:'Workspace tools',group:'Actions',icon:'⌘'}))];
+  const records=[...state.people.map(p=>({kind:'member',id:p.id,label:p.name,subtitle:p.role||'Team member',keywords:p.strengths,group:'Team members',icon:'◉'})),...state.tasks.map(t=>({kind:'task',id:t.id,label:t.title,subtitle:`${state.people.find(p=>p.id===t.person)?.name||'Unassigned'} · ${t.status||'To do'}${t.due?' · Due '+t.due:''}`,keywords:t.date,group:'Tasks',icon:'↗'})),...state.activities.map(a=>({kind:'activity',id:a.id,label:a.title,subtitle:`${a.type||'Team activity'} · ${a.date||'No date'}`,group:'Team connection',icon:'♡'}))];
+  return [...actions,...records].filter(item=>!scope||(scope==='action'?['page','create','tool'].includes(item.kind):item.kind===scope)).map((item,index)=>{
+   const label=normalize(item.label),haystack=normalize([item.label,item.subtitle,item.keywords].join(' '));
+   return {...item,score:tokens.every(token=>haystack.includes(token))?tokens.reduce((score,token)=>score+(label===token?120:label.startsWith(token)?70:label.includes(token)?40:10),tokens.length?(['member','task','activity'].includes(item.kind)?5:0):item.kind==='page'?20:0):-1,index};
+  }).filter(item=>item.score>=0).sort((a,b)=>b.score-a.score||a.index-b.index).slice(0,limit);
+ }
+ const api={search,pages};if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.TeamspaceCommands=api;
+})(globalThis);

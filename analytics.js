@@ -64,6 +64,13 @@
   rows.sort((a,b)=>(order[options.sort]||order.most)(a,b)||a.name.localeCompare(b.name));
   return {from,to:end,count,rows,max,min,total:rows.reduce((sum,r)=>sum+r.completed,0),leave:rows.reduce((sum,r)=>sum+r.leave,0)};
  }
+ function periodComparison(state,end,options={}){
+  const current=presentationReport(state,end,options),previousEnd=shift(current.from,-1),prior=presentationReport(state,previousEnd,{...options,count:current.count,focus:'',today:options.today||end});
+  const shown=new Set(current.rows.map(r=>r.person)),previousRows=prior.rows.filter(r=>shown.has(r.person)),byId=new Map(previousRows.map(r=>[r.person,r]));
+  const delta=(value,previous)=>({value,previous,change:value-previous,percent:previous===0?null:(value-previous)/previous*100});
+  const previousTotal=previousRows.reduce((sum,r)=>sum+r.completed,0),previousLeave=previousRows.reduce((sum,r)=>sum+r.leave,0);
+  return {...current,rows:current.rows.map(row=>({...row,previous:byId.get(row.person),completionChange:delta(row.completed,byId.get(row.person)?.completed||0)})),previous:{from:prior.from,to:prior.to,rows:previousRows,total:previousTotal,leave:previousLeave},completionChange:delta(current.total,previousTotal),leaveChange:delta(current.leave,previousLeave)};
+ }
  function downstream(state,id){const result=new Set();function walk(parent){for(const task of state.tasks)if(dependencies(task).includes(parent)&&!result.has(task.id)){result.add(task.id);walk(task.id);}}walk(id);return [...result];}
  function leaveImpact(state,date,people){
   const ids=new Set(people||((state.leaves||[]).filter(l=>l.date===date).map(l=>l.person))),absent=new Set(ids);
@@ -75,6 +82,6 @@
    return {task,owner,blocked,backups:backups.slice(0,3),reason:task.due&&task.due<=date?'Due by this leave date':'Open work assigned before this leave date'};
   });
  }
- const api={isDay,shift,days,dependencies,dependencyError,stampCompletion,observeCapacity,completed,leaveDates,leaveDays,memberStats,ranks,presentationReport,downstream,leaveImpact};
+ const api={isDay,shift,days,dependencies,dependencyError,stampCompletion,observeCapacity,completed,leaveDates,leaveDays,memberStats,ranks,presentationReport,periodComparison,downstream,leaveImpact};
  if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.TeamspaceAnalytics=api;
 })(globalThis);
