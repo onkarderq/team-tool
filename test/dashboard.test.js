@@ -127,3 +127,29 @@ test('a quick-edit conflict retains local edits and never reports subsequent edi
  assert.equal(view.element('.local-badge').textContent,'● Unsaved changes');
  assert.match(view.element('#notice').textContent,/Another session/);
 });
+test('planning date details match due dates rather than work dates and exclude completed tasks',()=>{
+ const view=app({people:[{id:'p1',name:'Devendra'}],tasks:[
+  {id:'due',title:'Due task <check>',person:'p1',date:'2026-10-01',due:'2026-10-28',status:'Blocked',priority:'High',outcome:'Checks pass',blocker:'Awaiting access'},
+  {id:'unassigned',title:'Unassigned task',due:'2026-10-28',status:'To do'},
+  {id:'wrong',title:'Different due date',date:'2026-10-28',due:'2026-10-29',status:'To do'},
+  {id:'done',title:'Completed task',due:'2026-10-28',status:'Done'}
+ ],activities:[]});
+ view.run("openDueDate('2026-10-28')");
+ assert.equal(view.element('#due-detail').open,true);
+ const html=view.element('#due-content').innerHTML;
+ for(const text of ['2 open assignments','Due task &lt;check&gt;','Devendra','2026-10-01','Checks pass','Awaiting access','Unassigned'])assert.ok(html.includes(text),text);
+ for(const text of ['Different due date','Completed task','<check>'])assert.ok(!html.includes(text),text);
+ view.run("loaded=true;applyInlineEdit('tasks','due','status','Done');renderDueDetails()");
+ assert.ok(view.element('#due-content').innerHTML.includes('1 open assignment'));
+ assert.ok(!view.element('#due-content').innerHTML.includes('Due task &lt;check&gt;'));
+});
+test('all seven planning dates are accessible buttons, including empty dates',()=>{
+ const view=app({people:[],tasks:[],activities:[]});
+ const html=view.run('executionVisuals()');
+ const dates=[...html.matchAll(/data-due-date="(\d{4}-\d{2}-\d{2})"/g)].map(match=>match[1]);
+ assert.equal(dates.length,7);assert.equal(new Set(dates).size,7);
+ assert.ok(html.includes('role="group"'));
+ assert.ok(html.includes('View 0 open tasks due'));
+ view.run(`openDueDate('${dates[0]}')`);
+ assert.ok(view.element('#due-content').innerHTML.includes('No open tasks due on this date'));
+});
