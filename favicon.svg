@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="Derq team workspace">
+  <defs>
+    <linearGradient id="blue" x2="1" y2="1">
+      <stop stop-color="#12366b"/>
+      <stop offset="1" stop-color="#2465de"/>
+    </linearGradient>
+  </defs>
+  <rect width="32" height="32" rx="8" fill="url(#blue)"/>
+  <rect x=".5" y=".5" width="31" height="31" rx="7.5" fill="none" stroke="#87ceff" stroke-opacity=".35"/>
+  <path d="m8 22 8-12 8 10" fill="none" stroke="#82ddff" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="8" cy="22" r="3.3" fill="#fff"/>
+  <circle cx="16" cy="10" r="3.5" fill="#fff"/>
+  <circle cx="24" cy="20" r="3.3" fill="#82ddff"/>
+</svg>
